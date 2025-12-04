@@ -1,4 +1,6 @@
 #include <iostream>
+#include "../include/level.h"
+#include "../include/player.h"
 
 // Cross-platform include for SDL
 #if defined(_WIN32)
@@ -7,57 +9,48 @@
 #include <SDL2/SDL.h>
 #endif
 
+const int SCREEN_HEIGHT = 800;
+const int SCREEN_WIDTH = 600;
+
 int main(int argc, char* argv[]) {
     // 1. Initialize SDL
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        std::cout << "CRITICAL: SDL could not initialize! Error: " << SDL_GetError() << std::endl;
-        return -1;
-    }
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) return -1;
 
-    std::cout << "InfernoEngine is starting..." << std::endl;
+    SDL_Window* window = SDL_CreateWindow("InfernoEngine - Collision", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+    SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
-    // 2. Create the Window
-    SDL_Window* window = SDL_CreateWindow(
-        "InfernoEngine v0.1",       // Title
-        SDL_WINDOWPOS_CENTERED,     // X
-        SDL_WINDOWPOS_CENTERED,     // Y
-        800, 600,                   // W, H
-        SDL_WINDOW_SHOWN            // Flags
-    );
-
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-
-    if (!window) {
-        std::cout << "CRITICAL: Window creation failed! Error: " << SDL_GetError() << std::endl;
-        return -1;
-    }
+    Level currentLevel;
+    Player player(80.0f, 80.0f);
 
     bool isRunning = true;
     SDL_Event event;
 
+    //why is this a while
     while(isRunning){
-         // A. Handle Input (Check if user pressed X)
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
-                isRunning = false;
+        //explain why is this needed and how do we go to the next loop
+        while(SDL_PollEvent(&event)){
+            if(event.type == SDL_QUIT) isRunning = false;
+            else if(event.type = SDL_KEYDOWN){
+                if(event.key.keysym.sym == SDLK_ESCAPE) isRunning = false; //what is sdlk
+                if(event.key.keysym.sym == SDLK_r) currentLevel.Generate(); //what is keysym and sym
             }
         }
 
-        // B. Update Game Logic (Nothing here yet)
+        //what are we doing here
+    const Uint8* keys = SDL_GetKeyboardState(NULL);
 
-        // C. Render (Draw to screen)
-        // 1. Pick color: Dark Grey (R=40, G=40, B=40)
-        SDL_SetRenderDrawColor(renderer, 40, 40, 40, 255);
-        
-        // 2. Clear screen
-        SDL_RenderClear(renderer);
-        
-        // 3. Show it
-        SDL_RenderPresent(renderer);
+    player.Update(keys, currentLevel);
+
+    SDL_SetRenderDrawColor(renderer, 20, 20, 20, 255);
+    SDL_RenderClear(renderer);
+
+    currentLevel.Render(renderer);
+    player.Render(renderer);
+
+    SDL_RenderPresent(renderer);
     }
 
-    // 4. Cleanup
-    std::cout << "InfernoEngine shutting down..." << std::endl;
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
