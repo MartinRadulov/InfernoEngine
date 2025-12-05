@@ -16,6 +16,9 @@ public:
     void Update(const Uint8* keyState, Level& level);
 
     void Render(SDL_Renderer* renderer);
+
+    float GetX() const {return m_x;}
+    float GetY() const {return m_y;}
 private:
     float m_x;
     float m_y;

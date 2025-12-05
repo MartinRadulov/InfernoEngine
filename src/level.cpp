@@ -4,10 +4,10 @@
 
 Level::Level() {
     // When the level is created, generate it immediately
-    Generate();
+    Generate(2, 2);
 }
 
-void Level::Generate() {
+void Level::Generate(int pRow, int pCol) {
     std::srand(std::time(nullptr));
 
     for (int row = 0; row < MAP_ROWS; row++) {
@@ -16,7 +16,14 @@ void Level::Generate() {
             // Edge Walls
             if (row == 0 || row == MAP_ROWS - 1 || col == 0 || col == MAP_COLS - 1) {
                 m_mapData[row][col] = 1;
-            } 
+            }
+            
+
+            int distRow = std::abs(row - pRow);
+            int distCol = std::abs(col - pCol);
+            if(distRow <= 1 && distCol <= 1){
+                m_mapData[row][col] = 0;
+            }
             // Random Rocks inside
             else {
                 if (std::rand() % 10 == 0) {

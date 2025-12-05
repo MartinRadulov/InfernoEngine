@@ -33,7 +33,15 @@ int main(int argc, char* argv[]) {
             if(event.type == SDL_QUIT) isRunning = false;
             else if(event.type = SDL_KEYDOWN){
                 if(event.key.keysym.sym == SDLK_ESCAPE) isRunning = false; //what is sdlk
-                if(event.key.keysym.sym == SDLK_r) currentLevel.Generate(); //what is keysym and sym
+                if(event.key.keysym.sym == SDLK_r){
+                    float px = player.GetX();
+                    float py = player.GetY();
+
+                    int pRow = (int)(px) / TILE_SIZE;
+                    int pCol = (int)(py) / TILE_SIZE;
+
+                    currentLevel.Generate(pRow, pCol);
+                }
             }
         }
 

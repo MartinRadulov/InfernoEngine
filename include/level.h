@@ -18,7 +18,7 @@ public:
     Level();
 
     // Functions
-    void Generate();
+    void Generate(int pRow, int pCol);
     void Render(SDL_Renderer* renderer);
     
     // We will need this later for collision!
