@@ -1,4 +1,5 @@
 #pragma once
+#include "TextureManager.h"
 
 #if defined(_WIN32)
 #include <SDL.h>
@@ -26,7 +27,7 @@ private:
     int m_height = 32;
     int m_width = 32;
 
-    float m_speed = 0.5;
+    float m_speed = 2.5;
 
     bool CheckCollision(float newX, float newY, Level& level);
 };

@@ -1,4 +1,5 @@
-#pragma once // Prevents circular include errors
+#pragma once
+#include "TextureManager.h" // Prevents circular include errors
 
 // Cross-platform SDL include
 #if defined(_WIN32)

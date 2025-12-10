@@ -21,7 +21,7 @@ void Level::Generate(int pRow, int pCol) {
 
             int distRow = std::abs(row - pRow);
             int distCol = std::abs(col - pCol);
-            if(distRow <= 1 && distCol <= 1){
+            if(distRow <= 2 && distCol <= 2){
                 m_mapData[row][col] = 0;
             }
             // Random Rocks inside
@@ -37,32 +37,26 @@ void Level::Generate(int pRow, int pCol) {
 }
 
 void Level::Render(SDL_Renderer* renderer) {
+    TextureManager* tm = TextureManager::GetInstance();
     for (int row = 0; row < MAP_ROWS; row++) {
         for (int col = 0; col < MAP_COLS; col++) {
-            
-            // Math: Calculate pixel position
-            SDL_Rect tileRect = { 
-                col * TILE_SIZE, 
-                row * TILE_SIZE, 
-                TILE_SIZE, 
-                TILE_SIZE 
-            };
+            int xPos = col * TILE_SIZE;
+            int yPos = row * TILE_SIZE;
 
-            // Color logic
-            if (m_mapData[row][col] == 1) {
-                SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255); // Wall
-            } else {
-                SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255); // Floor
+            if(m_mapData[row][col] == 1){
+                tm->Draw("rock", xPos, yPos, TILE_SIZE, TILE_SIZE, renderer);
+            }
+            else{
+                tm->Draw("floor", xPos, yPos, TILE_SIZE, TILE_SIZE, renderer);
             }
 
-            // Draw
-            SDL_RenderFillRect(renderer, &tileRect);
-            
-            // Grid Outline
-            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); 
+            //Grid outline
+            SDL_Rect tileRect = {xPos, yPos, TILE_SIZE, TILE_SIZE};
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
             SDL_RenderDrawRect(renderer, &tileRect);
         }
     }
+
 }
 
 int Level::GetTile(int row, int col) {
