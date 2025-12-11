@@ -62,29 +62,35 @@ int main(int argc, char* argv[]) {
 
                     currentLevel.Generate(pRow, pCol);
                 }
-                if(event.key.keysym.sym == SDLK_UP){
+                if(player.CanShoot()){
+                    bool shotFired = false;
                     float px = player.GetX();
                     float py = player.GetY();
 
-                    bullets.push_back(Projectile(px, py, 0, -1));
-                }
-                if(event.key.keysym.sym == SDLK_DOWN){
-                    float px = player.GetX();
-                    float py = player.GetY();
+                    if(event.key.keysym.sym == SDLK_UP){
 
-                    bullets.push_back(Projectile(px, py, 0, 1));
-                }
-                if(event.key.keysym.sym == SDLK_LEFT){
-                    float px = player.GetX();
-                    float py = player.GetY();
+                        bullets.push_back(Projectile(px, py, 0, -1));
+                        shotFired = true;
+                    }
+                    else if(event.key.keysym.sym == SDLK_DOWN){
 
-                    bullets.push_back(Projectile(px, py, -1, 0));
-                }
-                if(event.key.keysym.sym == SDLK_RIGHT){
-                    float px = player.GetX();
-                    float py = player.GetY();
+                        bullets.push_back(Projectile(px, py, 0, 1));
+                        shotFired = true;
+                    }
+                    else if(event.key.keysym.sym == SDLK_LEFT){
 
-                    bullets.push_back(Projectile(px, py, 1, 0));
+                        bullets.push_back(Projectile(px, py, -1, 0));
+                        shotFired = true;
+                    }
+                    else if(event.key.keysym.sym == SDLK_RIGHT){
+
+                        bullets.push_back(Projectile(px, py, 1, 0));
+                        shotFired = true;
+                    }
+
+                    if(shotFired){
+                        player.Shoot();
+                    }
                 }
             }
         }
@@ -95,10 +101,12 @@ int main(int argc, char* argv[]) {
 
     //Updating the bullets
     for(int i = 0; i < bullets.size(); i++){
-        bullets[i].Update();
+        bullets[i].Update(currentLevel);
         
-        //Add logic for removeing bullet if offscreen
-        //if(bullets[i].isOffScreen()) bullets.pop_back();
+        if(!bullets[i].GetIsActive()){
+            bullets.erase(bullets.begin() + i);
+            i--;
+        }
     }
 
     //Rendering part

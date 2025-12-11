@@ -20,6 +20,10 @@ public:
 
     float GetX() const {return m_x;}
     float GetY() const {return m_y;}
+
+    bool CanShoot();
+    void Shoot();
+    void SetFireRate(int delay);
 private:
     float m_x;
     float m_y;
@@ -28,6 +32,9 @@ private:
     int m_width = 32;
 
     float m_speed = 2.5;
+
+    int m_fireRate;
+    Uint32 m_lastShotTime;
 
     bool CheckCollision(float newX, float newY, Level& level);
 };

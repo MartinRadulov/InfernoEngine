@@ -4,6 +4,8 @@
 Player::Player(float startX, float startY) {
     m_x = startX;
     m_y = startY;
+    m_fireRate = 500;
+    m_lastShotTime = 0;
 }
 
 void Player::Update(const Uint8* keyState, Level& level) {
@@ -52,4 +54,19 @@ bool Player::CheckCollision(float newX, float newY, Level& level) {
     if (level.GetTile(bottomTileRow, rightTileCol) == 1) return true;  // Hit Bottom-Right
 
     return false; // No wall hit
+}
+
+bool Player::CanShoot(){
+    Uint32 currentTime = SDL_GetTicks();
+    if(currentTime - m_lastShotTime > m_fireRate) return true;
+
+    return false;
+}
+
+void Player::Shoot(){
+    m_lastShotTime = SDL_GetTicks();
+}
+
+void Player::SetFireRate(int delay){
+    m_fireRate = delay;
 }
