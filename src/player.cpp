@@ -29,16 +29,7 @@ void Player::Update(const Uint8* keyState, Level& level) {
 }
 
 void Player::Render(SDL_Renderer* renderer) {
-    // Convert math position (float) to screen position (int)
-    // SDL_Rect playerRect = {
-    //     (int)m_x,
-    //     (int)m_y,
-    //     m_width,
-    //     m_height
-    // };
-
-    // SDL_SetRenderDrawColor(renderer, 255, 50, 50, 255); // Red
-    // SDL_RenderFillRect(renderer, &playerRect);
+    TextureManager::GetInstance()->Draw("isaac", (int)m_x, (int)m_y, 32, 32, renderer);
 }
 
 // THE MATH PART
