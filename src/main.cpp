@@ -6,6 +6,8 @@
 #include "../include/player.h"
 #include "../include/TextureManager.h"
 #include "../include/projectile.h"
+#include "../include/enemy.h"
+#include "../include/utils.h"
 
 // Cross-platform include for SDL
 #if defined(_WIN32)
@@ -42,17 +44,21 @@ int main(int argc, char* argv[]) {
     Level currentLevel;
     Player player(80.0f, 80.0f);
     std::vector<Projectile> bullets;
+    std::vector<Enemy> enemies;
+
+    //TEST!!!!
+    enemies.push_back(Enemy(300.0f, 300.0f));
 
     bool isRunning = true;
     SDL_Event event;
 
-    //why is this a while
+    //Game running
     while(isRunning){
-        //explain why is this needed and how do we go to the next loop
         while(SDL_PollEvent(&event)){
             if(event.type == SDL_QUIT) isRunning = false;
             else if(event.type = SDL_KEYDOWN){
-                if(event.key.keysym.sym == SDLK_ESCAPE) isRunning = false; //what is sdlk
+                if(event.key.keysym.sym == SDLK_ESCAPE) isRunning = false;
+
                 if(event.key.keysym.sym == SDLK_r){
                     float px = player.GetX();
                     float py = player.GetY();
@@ -62,6 +68,7 @@ int main(int argc, char* argv[]) {
 
                     currentLevel.Generate(pRow, pCol);
                 }
+
                 if(player.CanShoot()){
                     bool shotFired = false;
                     float px = player.GetX();
@@ -95,16 +102,37 @@ int main(int argc, char* argv[]) {
             }
         }
 
-    //Updating Player movement 
+    //Updating the objects 
     const Uint8* keys = SDL_GetKeyboardState(NULL);
     player.Update(keys, currentLevel);
+    for(auto& bullet : bullets){
+        bullet.Update(currentLevel);
+    }
+    for(auto& enemy : enemies){
+        enemy.Update(player.GetX(), player.GetY(), currentLevel);
+    }
 
-    //Updating the bullets
+    //Check collisions
+    for(auto& bullet : bullets){
+        for(auto& enemy : enemies){
+            if(CheckOverlap(bullet.GetX(), bullet.GetY(), bullet.GetWidth(), bullet.GetHeight(),
+                enemy.GetX(), enemy.GetY(), enemy.GetWidth(), enemy.GetHeight())){
+                    bullet.Deactivate();
+                    enemy.TakeDamage();
+                }
+        }
+    }
+
+    //Clean up
     for(int i = 0; i < bullets.size(); i++){
-        bullets[i].Update(currentLevel);
-        
         if(!bullets[i].GetIsActive()){
             bullets.erase(bullets.begin() + i);
+            i--;
+        }
+    }
+    for(int i = 0; i < enemies.size(); i++){
+        if(!enemies[i].IsDead()){
+            enemies.erase(enemies.begin() + i);
             i--;
         }
     }
@@ -116,11 +144,13 @@ int main(int argc, char* argv[]) {
 
     currentLevel.Render(renderer);
     player.Render(renderer);
-
-    //TextureManager::GetInstance()->Draw("isaac", (int)player.GetX(), (int)player.GetY(), 32, 32, renderer);
-    for(int i = 0; i < bullets.size(); i++){
-        bullets[i].Render(renderer);
+    for(auto& bullet : bullets){
+        bullet.Render(renderer);
     }
+    for(auto& enemy : enemies){
+        enemy.Render(renderer);
+    }
+
 
 
     SDL_RenderPresent(renderer);

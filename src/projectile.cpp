@@ -53,3 +53,7 @@ bool Projectile::CheckCollision(float newX, float newY, Level& level){
 
     return false; // No wall hit
 }
+
+void Projectile::Deactivate(){
+    m_isActive = false;
+}

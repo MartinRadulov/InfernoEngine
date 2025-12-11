@@ -31,7 +31,7 @@ private:
     int m_height = 32;
     int m_width = 32;
 
-    float m_speed = 2.5;
+    float m_speed = 2.5f;
 
     int m_fireRate;
     Uint32 m_lastShotTime;

@@ -1,40 +1,37 @@
-#pragma once\
-
+#pragma once
 #if defined(_WIN32)
 #include <SDL.h>
 #else
 #include <SDL2/SDL.h>
 #endif
 
-#include "TextureManager.h"
 #include "level.h"
+#include "TextureManager.h"
 
-class Projectile{
+class Enemy{
 public:
-    Projectile(float x, float y, float velX, float velY);
+    Enemy(float x, float y);
 
-    void Update(Level& level);
+    void Update(float playerX, float playerY, Level& level);
 
     void Render(SDL_Renderer* renderer);
 
-    bool isOffScreen();
+    void TakeDamage();
 
-    bool GetIsActive() const {return m_isActive;}
-
-    void Deactivate();
+    bool IsDead() const {return m_isActive;} 
 
     float GetX() const {return m_x;}
     float GetY() const {return m_y;}
     int GetWidth() const {return m_width;}
     int GetHeight() const {return m_height;}
-
 private:
+    float m_x;
+    float m_y;
+    int m_height = 32;
+    int m_width = 32;
+    float m_speed = 1.5f;
+    int m_health;
     bool m_isActive = true;
-    float m_x, m_y;
-    float m_velX, m_velY;
-    float m_speed = 10.0f;
-    int m_width = 16;
-    int m_height = 16;
 
     bool CheckCollision(float newX, float newY, Level& level);
 };

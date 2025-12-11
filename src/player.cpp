@@ -31,7 +31,7 @@ void Player::Update(const Uint8* keyState, Level& level) {
 }
 
 void Player::Render(SDL_Renderer* renderer) {
-    TextureManager::GetInstance()->Draw("isaac", (int)m_x, (int)m_y, 32, 32, renderer);
+    TextureManager::GetInstance()->Draw("isaac", (int)m_x, (int)m_y, m_width, m_height, renderer);
 }
 
 // THE MATH PART
