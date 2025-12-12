@@ -1,5 +1,6 @@
 #pragma once
-#include "TextureManager.h" // Prevents circular include errors
+#include "TextureManager.h"
+#include "utils.h"
 
 // Cross-platform SDL include
 #if defined(_WIN32)
@@ -7,11 +8,6 @@
 #else
 #include <SDL2/SDL.h>
 #endif
-
-// Constants (Moved from main.cpp)
-const int TILE_SIZE = 40;
-const int MAP_ROWS = 15;
-const int MAP_COLS = 20;
 
 class Level {
 public:

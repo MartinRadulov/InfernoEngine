@@ -16,24 +16,11 @@
 #include <SDL2/SDL.h>
 #endif
 
-const int SCREEN_HEIGHT = 800;
-const int SCREEN_WIDTH = 600;
-
 int main(int argc, char* argv[]) {
-    // 1. Initialize SDL
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) return -1;
-
-    int flags = IMG_INIT_PNG | IMG_INIT_JPG | IMG_INIT_TIF; // Add all major flags
-    if((IMG_Init(flags) & flags) != flags) {
-        std::cout << "IMG_Init failed! Required flags not met: " << IMG_GetError() << std::endl;
-        SDL_Quit();
-        return -1;
-    }
-
-    //Creating window
-    SDL_Window* window = SDL_CreateWindow("InfernoEngine - Collision", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-    SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    //Initialize SDL
+    SDL_Window* window = nullptr;
+    SDL_Renderer* renderer = nullptr;
+    if(!InitializeSDL(window, renderer));
 
     //Load All Assets
     TextureManager::GetInstance()->Load("assets/isaac.png", "isaac", renderer);
@@ -49,10 +36,9 @@ int main(int argc, char* argv[]) {
     //TEST!!!!
     enemies.push_back(Enemy(300.0f, 300.0f));
 
+    //Game running
     bool isRunning = true;
     SDL_Event event;
-
-    //Game running
     while(isRunning){
         while(SDL_PollEvent(&event)){
             if(event.type == SDL_QUIT) isRunning = false;
@@ -60,12 +46,8 @@ int main(int argc, char* argv[]) {
                 if(event.key.keysym.sym == SDLK_ESCAPE) isRunning = false;
 
                 if(event.key.keysym.sym == SDLK_r){
-                    float px = player.GetX();
-                    float py = player.GetY();
-
-                    int pRow = (int)(py) / TILE_SIZE;
-                    int pCol = (int)(px) / TILE_SIZE;
-
+                    int pRow = PixelToGrid(player.GetY());
+                    int pCol = PixelToGrid(player.GetX());
                     currentLevel.Generate(pRow, pCol);
                 }
 
@@ -114,6 +96,7 @@ int main(int argc, char* argv[]) {
 
     //Check collisions
     for(auto& bullet : bullets){
+        if(!bullet.GetIsActive()) continue;
         for(auto& enemy : enemies){
             if(CheckOverlap(bullet.GetX(), bullet.GetY(), bullet.GetWidth(), bullet.GetHeight(),
                 enemy.GetX(), enemy.GetY(), enemy.GetWidth(), enemy.GetHeight())){
