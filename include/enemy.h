@@ -7,16 +7,24 @@
 
 #include "level.h"
 #include "TextureManager.h"
+#include "utils.h"
+#include <string>
 
 class Enemy{
 public:
-    Enemy(float x, float y);
+    Enemy(float x, float y, int width, int height);
 
-    void Update(float playerX, float playerY, Level& level);
+    virtual ~Enemy() {}
 
-    void Render(SDL_Renderer* renderer);
+    Enemy(const Enemy&) = delete;
 
-    void TakeDamage();
+    Enemy& operator= (const Enemy&) = delete;
+
+    virtual void Update(Level& level, float playerX, float playerY) = 0;
+
+    virtual void Render(SDL_Renderer* renderer);
+
+    void TakeDamage(float dmgNum);
 
     bool IsDead() const {return m_isActive;} 
 
@@ -24,14 +32,15 @@ public:
     float GetY() const {return m_y;}
     int GetWidth() const {return m_width;}
     int GetHeight() const {return m_height;}
-private:
+protected:
     float m_x;
     float m_y;
-    int m_height = 32;
-    int m_width = 32;
-    float m_speed = 1.5f;
-    int m_health;
+    int m_height = M_ENEMY;
+    int m_width = M_ENEMY;
+    float m_speed;
+    float m_health;
     bool m_isActive = true;
+    std::string m_textureID;
 
     bool CheckCollision(float newX, float newY, Level& level);
-};
+}; 

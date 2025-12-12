@@ -20,6 +20,7 @@ public:
 
     float GetX() const {return m_x;}
     float GetY() const {return m_y;}
+    float GetDmg() const {return m_damage;}
 
     bool CanShoot();
     void Shoot();
@@ -27,14 +28,13 @@ public:
 private:
     float m_x;
     float m_y;
-
     int m_height = 32;
     int m_width = 32;
+    Uint32 m_lastShotTime;
 
     float m_speed = 2.5f;
-
     int m_fireRate;
-    Uint32 m_lastShotTime;
+    float m_damage = 3.5f;
 
     bool CheckCollision(float newX, float newY, Level& level);
 };

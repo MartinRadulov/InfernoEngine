@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.0)
 project(InfernoEngine)
 
 # 1. FIND ALL C++ FILES
-file(GLOB SOURCES "src/*.cpp")
+file(GLOB_RECURSE SOURCES "src/*.cpp")
 
 # 2. CREATE THE EXECUTABLE
 add_executable(InfernoEngine ${SOURCES})
@@ -50,4 +50,4 @@ endif()
 # 4. ASSET COPY (CROSS-PLATFORM)
 # The most robust way to copy the assets folder to the build directory.
 file(COPY "${CMAKE_SOURCE_DIR}/assets" 
-     DESTINATION "$<TARGET_FILE_DIR:InfernoEngine>")
+     DESTINATION "${CMAKE_BINARY_DIR}")

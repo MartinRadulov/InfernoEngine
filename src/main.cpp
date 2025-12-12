@@ -8,6 +8,8 @@
 #include "../include/projectile.h"
 #include "../include/enemy.h"
 #include "../include/utils.h"
+#include "../include/enemies/zombie.h"
+#include "../include/enemies/fly.h"
 
 // Cross-platform include for SDL
 #if defined(_WIN32)
@@ -26,15 +28,18 @@ int main(int argc, char* argv[]) {
     TextureManager::GetInstance()->Load("assets/isaac.png", "isaac", renderer);
     TextureManager::GetInstance()->Load("assets/rock.png", "rock", renderer);
     TextureManager::GetInstance()->Load("assets/floor.png", "floor", renderer);
+    TextureManager::GetInstance()->Load("assets/fly.png", "fly", renderer);
+    TextureManager::GetInstance()->Load("assets/zombie.png", "zombie", renderer);
 
     //Creating the objects
     Level currentLevel;
     Player player(80.0f, 80.0f);
     std::vector<Projectile> bullets;
-    std::vector<Enemy> enemies;
+    std::vector<Enemy*> enemies;
 
     //TEST!!!!
-    enemies.push_back(Enemy(300.0f, 300.0f));
+    enemies.push_back(new Zombie(300.0f, 300.0f));
+    enemies.push_back(new Fly(100.0f, 100.0f));
 
     //Game running
     bool isRunning = true;
@@ -91,7 +96,7 @@ int main(int argc, char* argv[]) {
         bullet.Update(currentLevel);
     }
     for(auto& enemy : enemies){
-        enemy.Update(player.GetX(), player.GetY(), currentLevel);
+        enemy->Update(currentLevel, player.GetX(), player.GetY());
     }
 
     //Check collisions
@@ -99,9 +104,9 @@ int main(int argc, char* argv[]) {
         if(!bullet.GetIsActive()) continue;
         for(auto& enemy : enemies){
             if(CheckOverlap(bullet.GetX(), bullet.GetY(), bullet.GetWidth(), bullet.GetHeight(),
-                enemy.GetX(), enemy.GetY(), enemy.GetWidth(), enemy.GetHeight())){
+                enemy->GetX(), enemy->GetY(), enemy->GetWidth(), enemy->GetHeight())){
                     bullet.Deactivate();
-                    enemy.TakeDamage();
+                    enemy->TakeDamage(player.GetDmg());
                 }
         }
     }
@@ -114,7 +119,7 @@ int main(int argc, char* argv[]) {
         }
     }
     for(int i = 0; i < enemies.size(); i++){
-        if(!enemies[i].IsDead()){
+        if(!enemies[i]->IsDead()){
             enemies.erase(enemies.begin() + i);
             i--;
         }
@@ -131,7 +136,7 @@ int main(int argc, char* argv[]) {
         bullet.Render(renderer);
     }
     for(auto& enemy : enemies){
-        enemy.Render(renderer);
+        enemy->Render(renderer);
     }
 
 

@@ -10,6 +10,10 @@ const int SCREEN_HEIGHT = 600;
 const int TILE_SIZE = 40;
 const int MAP_ROWS = 15;
 const int MAP_COLS = 20;
+const int S_ENEMY = 16;
+const int M_ENEMY = 32;
+const int L_ENEMY = 64;
+
 
 inline bool CheckOverlap(int x1, int y1, int w1, int h1, int x2, int y2, int w2, int h2){
     if(x1 + w1 < x2 || x2 + w2 < x1) return false;
