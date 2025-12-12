@@ -4,6 +4,11 @@
 Player::Player(float startX, float startY) {
     m_x = startX;
     m_y = startY;
+    m_lastDamageTime = 0;
+    m_invTime = 1000;
+
+    m_maxHealth = 100;
+    m_health = m_maxHealth;
     m_fireRate = 500;
     m_lastShotTime = 0;
 }
@@ -31,6 +36,11 @@ void Player::Update(const Uint8* keyState, Level& level) {
 }
 
 void Player::Render(SDL_Renderer* renderer) {
+    bool isInv = (SDL_GetTicks() - m_lastDamageTime < m_invTime);
+    if(isInv && (SDL_GetTicks() / 100) % 2 == 0){
+        return;
+    }
+    
     TextureManager::GetInstance()->Draw("isaac", (int)m_x, (int)m_y, m_width, m_height, renderer);
 }
 
@@ -71,4 +81,22 @@ void Player::Shoot(){
 
 void Player::SetFireRate(int delay){
     m_fireRate = delay;
+}
+
+void Player::TakeDamage(float dmgNum){
+    Uint32 currTime = SDL_GetTicks();
+    if(currTime - m_lastDamageTime < m_invTime){
+        return;
+    }
+
+    m_health -= dmgNum;
+    m_lastDamageTime = currTime;
+
+    std::cout << "OUCH! Player HP:" << m_health << std::endl;
+
+    if(m_health <= 0){
+        m_health = 0;
+        m_isActive = false;
+        std::cout << "DEAD" << std::endl;
+    }
 }

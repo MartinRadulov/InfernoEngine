@@ -113,6 +113,13 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    for(auto& enemy : enemies){
+        if(CheckOverlap(player.GetX(), player.GetY(), M_ENEMY, M_ENEMY, enemy->GetX(),
+            enemy->GetY(), enemy->GetWidth(), enemy->GetHeight())){
+                player.TakeDamage(enemy->GetDmg());
+            }
+    }
+
     //Clean up
     for(int i = 0; i < bullets.size(); i++){
         if(!bullets[i].GetIsActive()){

@@ -4,6 +4,7 @@ Zombie::Zombie(float x, float y) : Enemy(x, y, M_ENEMY, M_ENEMY){
     m_health = 10.0f;
     m_speed = 1.0f;
     m_textureID = "zombie";
+    m_damage = 15.0f;
 }
 
 void Zombie::Update(Level& level, float playerX, float playerY){

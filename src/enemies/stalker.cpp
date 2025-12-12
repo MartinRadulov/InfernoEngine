@@ -10,6 +10,7 @@ Stalker::Stalker(float x, float y) : Enemy(x, y, M_ENEMY, M_ENEMY){
     m_moveTimer = 0;
     m_dirX = 0;
     m_dirY = 0;
+    m_damage = 15.0f;
 }
 
 void Stalker::Update(Level& level, float playerX, float playerY){

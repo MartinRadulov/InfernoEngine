@@ -25,16 +25,23 @@ public:
     bool CanShoot();
     void Shoot();
     void SetFireRate(int delay);
+    void TakeDamage(float dmgNum);
+    bool IsDead() const {return m_isActive;}
 private:
     float m_x;
     float m_y;
     int m_height = 32;
     int m_width = 32;
     Uint32 m_lastShotTime;
+    Uint32 m_lastDamageTime;
+    int m_invTime;
+    bool m_isActive = true;
 
     float m_speed = 2.5f;
     int m_fireRate;
     float m_damage = 3.5f;
+    float m_health;
+    float m_maxHealth;
 
     bool CheckCollision(float newX, float newY, Level& level);
 };

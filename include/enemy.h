@@ -37,6 +37,7 @@ public:
     float GetY() const {return m_y;}
     int GetWidth() const {return m_width;}
     int GetHeight() const {return m_height;}
+    float GetDmg() const {return m_damage;}
 protected:
     float m_x;
     float m_y;
@@ -44,6 +45,7 @@ protected:
     int m_width = M_ENEMY;
     float m_speed;
     float m_health;
+    float m_damage;
     bool m_isActive = true;
     std::string m_textureID;
 
