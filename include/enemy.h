@@ -10,6 +10,11 @@
 #include "utils.h"
 #include <string>
 
+enum class EnemyState{
+    WANDERING,
+    CHASING
+};
+
 class Enemy{
 public:
     Enemy(float x, float y, int width, int height);

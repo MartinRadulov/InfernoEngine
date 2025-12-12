@@ -9,6 +9,11 @@ void Enemy::Render(SDL_Renderer* renderer) {
 }
 
 bool Enemy::CheckCollision(float newX, float newY, Level& level) {
+    if (newX < 0 || newX + m_width > SCREEN_WIDTH ||
+            newY < 0 || newY + m_height > SCREEN_HEIGHT) {
+            return true;
+        }
+
     int leftTileCol   = (int)(newX) / TILE_SIZE;
     int topTileRow    = (int)(newY) / TILE_SIZE;
 

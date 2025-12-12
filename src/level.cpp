@@ -60,9 +60,9 @@ void Level::Render(SDL_Renderer* renderer) {
 }
 
 int Level::GetTile(int row, int col) {
-    // Safety check: Don't read outside the array!
-    if (row >= 0 && row < MAP_ROWS && col >= 0 && col < MAP_COLS) {
-        return m_mapData[row][col];
-    }
-    return 1; // If out of bounds, treat it as a wall
+    if(row < 0 || col < 0) return 1;
+
+    if(row >= MAP_ROWS || col >= MAP_COLS) return 1;
+
+    return m_mapData[row][col];
 }

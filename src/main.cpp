@@ -10,6 +10,7 @@
 #include "../include/utils.h"
 #include "../include/enemies/zombie.h"
 #include "../include/enemies/fly.h"
+#include "../include/enemies/stalker.h"
 
 // Cross-platform include for SDL
 #if defined(_WIN32)
@@ -38,8 +39,9 @@ int main(int argc, char* argv[]) {
     std::vector<Enemy*> enemies;
 
     //TEST!!!!
-    enemies.push_back(new Zombie(300.0f, 300.0f));
+    //enemies.push_back(new Zombie(300.0f, 300.0f));
     enemies.push_back(new Fly(100.0f, 100.0f));
+    enemies.push_back(new Stalker(300.0f, 350.0f));
 
     //Game running
     bool isRunning = true;

@@ -37,9 +37,11 @@ void Player::Render(SDL_Renderer* renderer) {
 // THE MATH PART
 //explain this whole part
 bool Player::CheckCollision(float newX, float newY, Level& level) {
-    // We need to check all 4 corners of the player to see if ANY of them are in a wall
-    
-    // Left-Top corner
+    if (newX < 0 || newX + m_width > SCREEN_WIDTH ||
+        newY < 0 || newY + m_height > SCREEN_HEIGHT) {
+        return true;
+    }
+
     int leftTileCol   = (int)(newX) / TILE_SIZE;
     int topTileRow    = (int)(newY) / TILE_SIZE;
 

@@ -2,7 +2,7 @@
 
 Fly::Fly(float x, float y) : Enemy(x, y, S_ENEMY, S_ENEMY){
     m_health = 1.0f;
-    m_speed = 2.0f;
+    m_speed = 1.5f;
     m_textureID = "fly";
 }
 
