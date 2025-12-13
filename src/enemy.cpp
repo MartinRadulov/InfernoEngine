@@ -5,7 +5,17 @@ Enemy::Enemy(float x, float y, int width, int height)
     : m_x(x), m_y(y), m_width(width), m_height(height) {}
 
 void Enemy::Render(SDL_Renderer* renderer) {
-    TextureManager::GetInstance()->Draw(m_textureID.c_str(), (int)m_x, (int)m_y, m_width, m_height, renderer);
+    int row = 0;
+    int frame = 0;
+
+    TextureManager::GetInstance()->DrawFrame(
+        m_textureID.c_str(), 
+        (int)m_x, (int)m_y, 
+        m_width, m_height,       // DESTINATION (Defined in Child Constructor)
+        SPRITE_SHEET_SIZE, SPRITE_SHEET_SIZE, // SOURCE (High Res)
+        row, frame, 
+        renderer
+    );
 }
 
 bool Enemy::CheckCollision(float newX, float newY, Level& level) {

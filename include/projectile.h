@@ -33,8 +33,8 @@ private:
     float m_x, m_y;
     float m_velX, m_velY;
     float m_speed = 10.0f;
-    int m_width = 16;
-    int m_height = 16;
+    int m_width = S_ENEMY;
+    int m_height = S_ENEMY;
 
     bool CheckCollision(float newX, float newY, Level& level);
 };

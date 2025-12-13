@@ -12,6 +12,10 @@ public:
 
     void Draw(const char* id, int x, int y, int width, int height, SDL_Renderer* renderer);
 
+    void DrawFrame(const char* id, int x, int y, int destW, int destH, 
+        int srcW, int srcH, int row, int frame, 
+        SDL_Renderer* renderer, SDL_RendererFlip flip = SDL_FLIP_NONE);
+
     void Clear(const char* id);
 
 private:

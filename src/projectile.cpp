@@ -28,13 +28,23 @@ void Projectile::Update(Level& level){
     }
 }
 
-void Projectile::Render(SDL_Renderer* rednerer){
-    TextureManager::GetInstance()->Draw("rock", (int)m_x, (int)m_y, m_width, m_height, rednerer);
+void Projectile::Render(SDL_Renderer* renderer){
+    int currentRow = 0; 
+    int currentFrame = 0; // We will animate this later
+
+    TextureManager::GetInstance()->DrawFrame(
+        "rock", 
+        (int)m_x, (int)m_y, 
+        m_width, m_height,       // DESTINATION (e.g., 64x64)
+        SPRITE_SHEET_SIZE, SPRITE_SHEET_SIZE, // SOURCE (256x256)
+        currentRow, currentFrame, 
+        renderer
+    );
 }
 
 bool Projectile::isOffScreen(){
     //fix later with actual constraints
-    return (m_x < -50 || m_y > 850 || m_y < -50 || m_y > 650);
+    return (m_x < 0 || m_y > SCREEN_HEIGHT || m_y < 0 || m_x > SCREEN_WIDTH);
 }
 
 bool Projectile::CheckCollision(float newX, float newY, Level& level){

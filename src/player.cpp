@@ -40,8 +40,21 @@ void Player::Render(SDL_Renderer* renderer) {
     if(isInv && (SDL_GetTicks() / 100) % 2 == 0){
         return;
     }
-    
-    TextureManager::GetInstance()->Draw("isaac", (int)m_x, (int)m_y, m_width, m_height, renderer);
+
+
+    // Animation Logic (Basic Cycle)
+    // 0 = Down, 1 = Right, 2 = Up, 3 = Left (Isaac Layout usually)
+    int currentRow = 0; 
+    int currentFrame = 0; // We will animate this later
+
+    TextureManager::GetInstance()->DrawFrame(
+        "isaac", 
+        (int)m_x, (int)m_y, 
+        m_width, m_height,       // DESTINATION (e.g., 64x64)
+        SPRITE_SHEET_SIZE, SPRITE_SHEET_SIZE, // SOURCE (256x256)
+        currentRow, currentFrame, 
+        renderer
+    );
 }
 
 // THE MATH PART

@@ -9,6 +9,7 @@
 
 // We need to know about the Level to check for walls!
 #include "level.h" 
+#include "utils.h"
 
 class Player{
 public:
@@ -30,8 +31,8 @@ public:
 private:
     float m_x;
     float m_y;
-    int m_height = 32;
-    int m_width = 32;
+    int m_height = M_ENEMY;
+    int m_width = M_ENEMY;
     Uint32 m_lastShotTime;
     Uint32 m_lastDamageTime;
     int m_invTime;

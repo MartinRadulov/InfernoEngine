@@ -49,3 +49,27 @@ void TextureManager::Clear(const char* id){
 
     m_textureMap.erase(id);
 }
+
+void TextureManager::DrawFrame(const char* id, int x, int y, int destW, int destH, 
+                               int srcW, int srcH, int row, int frame, 
+                               SDL_Renderer* renderer, SDL_RendererFlip flip){
+    SDL_Rect srcRect;
+    SDL_Rect destRect;
+
+    // 1. SELECT THE CHUNK FROM THE SHEET
+    // If your sheet is a grid, this math finds the top-left corner of the frame
+    srcRect.x = srcW * frame;  
+    srcRect.y = srcH * row;    
+    srcRect.w = srcW;
+    srcRect.h = srcH;
+
+    // 2. DEFINE WHERE IT GOES ON SCREEN
+    destRect.x = x;
+    destRect.y = y;
+    destRect.w = destW; // SDL will automatically shrink/stretch it to fit here!
+    destRect.h = destH;
+
+    // 3. DRAW
+    // We use RenderCopyEx to allow flipping (useful if you only draw the Right animation and flip it for Left)
+    SDL_RenderCopyEx(renderer, m_textureMap[id], &srcRect, &destRect, 0, 0, flip);
+        }

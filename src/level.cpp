@@ -43,11 +43,9 @@ void Level::Render(SDL_Renderer* renderer) {
             int xPos = col * TILE_SIZE;
             int yPos = row * TILE_SIZE;
 
+            tm->Draw("floor", xPos, yPos, TILE_SIZE, TILE_SIZE, renderer);
             if(m_mapData[row][col] == 1){
                 tm->Draw("rock", xPos, yPos, TILE_SIZE, TILE_SIZE, renderer);
-            }
-            else{
-                tm->Draw("floor", xPos, yPos, TILE_SIZE, TILE_SIZE, renderer);
             }
 
             //Grid outline
