@@ -9,31 +9,49 @@ Projectile::Projectile(float x, float y, float velX, float velY)
     m_velY = velY * m_speed;
 }
 
-void Projectile::Update(Level& level){
-    m_x += m_velX;
-    m_y += m_velY;
+void Projectile::Update(Level& level, float ownerX, float ownerY){
+    if(m_isAttached){
+        m_x = ownerX + m_attachedOffX;
+        m_y = ownerY + m_attachedOffY;
+    }
+    else{
+        m_x += m_velX;
+        m_y += m_velY;
+    }
+
+    //Life time logic
+    if(m_lifeTime > 0){
+        m_lifeTime--;
+        if(m_lifeTime == 0){
+            m_isActive = false;
+        }
+    }
 
     // Sync the Collider to the new position
     m_collider.SetPosition(m_x, m_y);
 
     // Wall Collision Check
     if (m_collider.CheckMapCollision(level)) {
-        m_isActive = false; // Destroy on wall hit
+        if(m_destroyOnImpact){
+            m_isActive = false;
+        }
     }
 
     if(isOffScreen()){
-        m_isActive = false;
+        if(m_destroyOnImpact){
+            m_isActive = false;
+        }
     }
 }
 
 void Projectile::Render(std::vector<RenderObject>& renderList){
     RenderObject bObj;
-        bObj.textureID = "rock"; // Using rock texture for bullets per your code
-        bObj.srcRect = {0, 0, SPRITE_SHEET_SIZE, SPRITE_SHEET_SIZE};
-        bObj.destRect = {(int)m_x, (int)m_y, m_width, m_height};
-        bObj.sortY = m_y + m_height;
-        bObj.flip = SDL_FLIP_NONE;
-        renderList.push_back(bObj);
+    bObj.textureID = m_textureID; // Using rock texture for bullets per your code
+    bObj.srcRect = {0, 0, SPRITE_SHEET_SIZE, SPRITE_SHEET_SIZE};
+    bObj.destRect = {(int)m_x, (int)m_y, m_width, m_height};
+    bObj.sortY = m_y + m_height;
+    bObj.flip = SDL_FLIP_NONE;
+    renderList.push_back(bObj);
 }
 
 bool Projectile::isOffScreen(){

@@ -52,7 +52,7 @@ int main(int argc, char* argv[]) {
     while(isRunning){
         while(SDL_PollEvent(&event)){
             if(event.type == SDL_QUIT) isRunning = false;
-            else if(event.type = SDL_KEYDOWN){
+            else if(event.type == SDL_KEYDOWN){
                 if(event.key.keysym.sym == SDLK_ESCAPE) isRunning = false;
 
                 if(event.key.keysym.sym == SDLK_h) debugMode = !debugMode;
@@ -63,36 +63,7 @@ int main(int argc, char* argv[]) {
                     currentLevel.Generate(pRow, pCol);
                 }
 
-                if(player.CanShoot()){
-                    bool shotFired = false;
-                    float px = player.GetX();
-                    float py = player.GetY();
-
-                    if(event.key.keysym.sym == SDLK_UP){
-
-                        bullets.push_back(Projectile(px, py, 0, -1));
-                        shotFired = true;
-                    }
-                    else if(event.key.keysym.sym == SDLK_DOWN){
-
-                        bullets.push_back(Projectile(px, py, 0, 1));
-                        shotFired = true;
-                    }
-                    else if(event.key.keysym.sym == SDLK_LEFT){
-
-                        bullets.push_back(Projectile(px, py, -1, 0));
-                        shotFired = true;
-                    }
-                    else if(event.key.keysym.sym == SDLK_RIGHT){
-
-                        bullets.push_back(Projectile(px, py, 1, 0));
-                        shotFired = true;
-                    }
-
-                    if(shotFired){
-                        player.Shoot();
-                    }
-                }
+                player.HandleInput(event, bullets);
             }
         }
 
@@ -100,7 +71,7 @@ int main(int argc, char* argv[]) {
     const Uint8* keys = SDL_GetKeyboardState(NULL);
     player.Update(keys, currentLevel);
     for(auto& bullet : bullets){
-        bullet.Update(currentLevel);
+        bullet.Update(currentLevel, player.GetX(), player.GetY());
     }
     for(auto& enemy : enemies){
         enemy->Update(currentLevel, player.GetX(), player.GetY());
@@ -111,7 +82,9 @@ int main(int argc, char* argv[]) {
         if(!bullet.GetIsActive()) continue;
         for(auto& enemy : enemies){
             if(bullet.GetCollider().CheckOverlap(enemy->GetCollider())){
+                if(bullet.GetDestroyImpact()){
                     bullet.Deactivate();
+                }
                     enemy->TakeDamage(player.GetDmg());
                 }
         }

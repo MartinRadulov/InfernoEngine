@@ -2,7 +2,8 @@
 #include <iostream> // For debugging if needed
 
 Player::Player(float startX, float startY)
-    : m_collider(S_ENEMY, M_ENEMY - (S_ENEMY / 2), (M_ENEMY - S_ENEMY) / 2, S_ENEMY / 2) 
+    : m_collider(S_ENEMY, M_ENEMY - (S_ENEMY / 2), (M_ENEMY - S_ENEMY) / 2, S_ENEMY / 2),
+    m_bow(), m_sword()
  {
     m_x = startX;
     m_y = startY;
@@ -14,6 +15,8 @@ Player::Player(float startX, float startY)
     m_health = m_maxHealth;
     m_fireRate = 500;
     m_lastShotTime = 0;
+    m_currentWeaponType = WeaponType::RANGED;
+    m_activeWeapon = &m_bow;
 }
 
 void Player::Update(const Uint8* keyState, Level& level) {
@@ -89,4 +92,35 @@ void Player::TakeDamage(float dmgNum){
         m_isActive = false;
         std::cout << "DEAD" << std::endl;
     }
+}
+
+void Player::HandleInput(SDL_Event& event, std::vector<Projectile>& bullets){
+    if(event.type == SDL_KEYDOWN){
+        if(event.key.keysym.sym == SDLK_LSHIFT && event.key.repeat == 0){
+            if(m_currentWeaponType == WeaponType::RANGED){
+                m_currentWeaponType = WeaponType::MELEE;
+                m_activeWeapon = &m_sword;
+                //m_destroyOnImpact
+                std::cout<<"Switched to SWORD" << std::endl;
+            }
+            else{
+                m_currentWeaponType = WeaponType::RANGED;
+                m_activeWeapon = &m_bow;
+                std::cout<<"Switched to BOW" << std::endl;
+            }
+        }
+        int dirX = 0;
+        int dirY = 0;
+        bool attack = false;
+
+        if(event.key.keysym.sym == SDLK_UP) {dirY = -1; attack = true;}
+        if(event.key.keysym.sym == SDLK_DOWN) {dirY = 1; attack = true;}
+        if(event.key.keysym.sym == SDLK_LEFT) {dirX = -1; attack = true;}
+        if(event.key.keysym.sym == SDLK_RIGHT) {dirX = 1; attack = true;}
+
+        if(attack){
+            m_activeWeapon->Attack(m_x, m_y, dirX, dirY, bullets);
+        }
+    }
+
 }
