@@ -8,6 +8,7 @@
 
 #include "TextureManager.h"
 #include "level.h"
+#include "collider.h"
 
 class Projectile{
 public:
@@ -15,7 +16,7 @@ public:
 
     void Update(Level& level);
 
-    void Render(SDL_Renderer* renderer);
+    void Render(std::vector<RenderObject>& renderList);
 
     bool isOffScreen();
 
@@ -27,6 +28,7 @@ public:
     float GetY() const {return m_y;}
     int GetWidth() const {return m_width;}
     int GetHeight() const {return m_height;}
+    Collider& GetCollider() {return m_collider;}
 
 private:
     bool m_isActive = true;
@@ -35,6 +37,7 @@ private:
     float m_speed = 10.0f;
     int m_width = S_ENEMY;
     int m_height = S_ENEMY;
+    Collider m_collider;
 
     bool CheckCollision(float newX, float newY, Level& level);
 };

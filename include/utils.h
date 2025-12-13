@@ -16,12 +16,12 @@ const int L_ENEMY = 128;
 const int SPRITE_SHEET_SIZE = 256;
 
 
-inline bool CheckOverlap(int x1, int y1, int w1, int h1, int x2, int y2, int w2, int h2){
-    if(x1 + w1 < x2 || x2 + w2 < x1) return false;
-    if(y1 + h1 < y2 || y2 + h2 < y1) return false;
+// inline bool CheckOverlap(int x1, int y1, int w1, int h1, int x2, int y2, int w2, int h2){
+//     if(x1 + w1 < x2 || x2 + w2 < x1) return false;
+//     if(y1 + h1 < y2 || y2 + h2 < y1) return false;
     
-    return true;
-}
+//     return true;
+// }
 
 inline int PixelToGrid(float pixelCoord) {
     return (int)(pixelCoord) / TILE_SIZE;

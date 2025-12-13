@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <SDL2/SDL_image.h>
+#include <algorithm>
 //#include <SDL2/SDL_ttf.h> // (Later, for text)
 #include "../include/level.h"
 #include "../include/player.h"
@@ -43,6 +44,8 @@ int main(int argc, char* argv[]) {
     enemies.push_back(new Fly(100.0f, 100.0f));
     enemies.push_back(new Stalker(300.0f, 350.0f));
 
+    bool debugMode = false;
+
     //Game running
     bool isRunning = true;
     SDL_Event event;
@@ -51,6 +54,8 @@ int main(int argc, char* argv[]) {
             if(event.type == SDL_QUIT) isRunning = false;
             else if(event.type = SDL_KEYDOWN){
                 if(event.key.keysym.sym == SDLK_ESCAPE) isRunning = false;
+
+                if(event.key.keysym.sym == SDLK_h) debugMode = !debugMode;
 
                 if(event.key.keysym.sym == SDLK_r){
                     int pRow = PixelToGrid(player.GetY());
@@ -105,8 +110,7 @@ int main(int argc, char* argv[]) {
     for(auto& bullet : bullets){
         if(!bullet.GetIsActive()) continue;
         for(auto& enemy : enemies){
-            if(CheckOverlap(bullet.GetX(), bullet.GetY(), bullet.GetWidth(), bullet.GetHeight(),
-                enemy->GetX(), enemy->GetY(), enemy->GetWidth(), enemy->GetHeight())){
+            if(bullet.GetCollider().CheckOverlap(enemy->GetCollider())){
                     bullet.Deactivate();
                     enemy->TakeDamage(player.GetDmg());
                 }
@@ -114,8 +118,7 @@ int main(int argc, char* argv[]) {
     }
 
     for(auto& enemy : enemies){
-        if(CheckOverlap(player.GetX(), player.GetY(), M_ENEMY, M_ENEMY, enemy->GetX(),
-            enemy->GetY(), enemy->GetWidth(), enemy->GetHeight())){
+        if(player.GetCollider().CheckOverlap(enemy->GetCollider())){
                 player.TakeDamage(enemy->GetDmg());
             }
     }
@@ -139,16 +142,66 @@ int main(int argc, char* argv[]) {
     SDL_SetRenderDrawColor(renderer, 20, 20, 20, 255);
     SDL_RenderClear(renderer);
 
-    currentLevel.Render(renderer);
-    player.Render(renderer);
-    for(auto& bullet : bullets){
-        bullet.Render(renderer);
-    }
+    currentLevel.RenderFloors(renderer);
+
+    std::vector<RenderObject> renderList;
+    player.Render(renderList);
     for(auto& enemy : enemies){
-        enemy->Render(renderer);
+        enemy->Render(renderList);
+    }
+    for(auto& bullet : bullets){
+        bullet.Render(renderList);
+    }
+    for (int row = 0; row < MAP_ROWS; row++) {
+        for (int col = 0; col < MAP_COLS; col++) {
+            if (currentLevel.GetTile(row, col) == 1) {
+                RenderObject rObj;
+                rObj.textureID = "rock";
+                rObj.srcRect = {0, 0, SPRITE_SHEET_SIZE, SPRITE_SHEET_SIZE};
+                rObj.destRect = {col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE};
+                rObj.sortY = (row * TILE_SIZE) + TILE_SIZE;
+                renderList.push_back(rObj);
+            }
+        }
     }
 
+    std::sort(renderList.begin(), renderList.end());
 
+    for (auto& obj : renderList) {
+        TextureManager::GetInstance()->DrawFrameRect(
+            obj.textureID.c_str(), 
+            obj.srcRect, 
+            obj.destRect, 
+            renderer, 
+            obj.flip
+        );
+    }
+
+    //Debug Mode
+    if(debugMode){
+        SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+        for(int row = 0; row < MAP_ROWS; row++){
+            for(int col = 0; col < MAP_COLS; col++){
+                if(currentLevel.GetTile(row, col) == 1){
+                    SDL_Rect wallRect = {col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE};
+                    SDL_RenderDrawRect(renderer, &wallRect);
+                }
+            }
+        }
+        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+        for(auto& enemy : enemies){
+            SDL_Rect enemyRect = enemy->GetCollider().box;
+            SDL_RenderDrawRect(renderer, &enemyRect);
+            }
+        SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
+        for(auto& bullet : bullets){
+            SDL_Rect bulletRect = bullet.GetCollider().box;
+            SDL_RenderDrawRect(renderer, &bulletRect);
+            }
+        SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+        SDL_Rect playerRect = player.GetCollider().box;
+            SDL_RenderDrawRect(renderer, &playerRect);
+    }
 
     SDL_RenderPresent(renderer);
     }

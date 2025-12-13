@@ -8,14 +8,13 @@ Zombie::Zombie(float x, float y) : Enemy(x, y, M_ENEMY, M_ENEMY){
 }
 
 void Zombie::Update(Level& level, float playerX, float playerY){
-    float nextX = m_x;
-    float nextY = m_y;
+    float velX = 0;
+    float velY = 0;
 
-    if(playerX > m_x) nextX += m_speed;
-    if(playerX < m_x) nextX -= m_speed;
-    if(playerY > m_y) nextY += m_speed;
-    if(playerY < m_y) nextY -= m_speed;
+    if(playerX > m_x) velX = m_speed;
+    if(playerX < m_x) velX = -m_speed;
+    if(playerY > m_y) velY = m_speed;
+    if(playerY < m_y) velY = -m_speed;
 
-    if(!CheckCollision(nextX, m_y, level)) m_x = nextX;
-    if(!CheckCollision(m_x, nextY, level)) m_y = nextY;
+    MoveWithCollision(velX, velY, level);
 }

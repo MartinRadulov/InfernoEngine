@@ -37,16 +37,15 @@ void Stalker::Update(Level& level, float playerX, float playerY){
 }
 
 void Stalker::Chase(Level& level, float playerX, float playerY){
-    float nextX = m_x;
-    float nextY = m_y;
+    float velX = 0;
+    float velY = 0;
 
-    if(playerX > m_x) nextX += m_speed;
-    if(playerX < m_x) nextX -= m_speed;
-    if(playerY > m_y) nextY += m_speed;
-    if(playerY < m_y) nextY -= m_speed;
+    if(playerX > m_x) velX = m_speed;
+    if(playerX < m_x) velX = -m_speed;
+    if(playerY > m_y) velY = m_speed;
+    if(playerY < m_y) velY = -m_speed;
 
-    if(!CheckCollision(nextX, m_y, level)) m_x = nextX;
-    if(!CheckCollision(m_x, nextY, level)) m_y = nextY;
+    MoveWithCollision(velX, velY, level);
 }
 
 void Stalker::Wander(Level& level){
@@ -61,11 +60,10 @@ void Stalker::Wander(Level& level){
 
     float wanderSpeed = m_speed * 0.5f;
 
-    float nextX = m_x + (m_dirX * wanderSpeed);
-    float nextY = m_y + (m_dirY * wanderSpeed);
+    float velX = m_dirX * wanderSpeed;
+    float velY = m_dirY * wanderSpeed;
 
-    if(!CheckCollision(nextX, m_y, level)) m_x = nextX;
-    if(!CheckCollision(m_x, nextY, level)) m_y = nextY;
+    MoveWithCollision(velX, velY, level);
 }
 
 bool Stalker::HasLineOfSight(Level& level, float playerX, float playerY){

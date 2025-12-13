@@ -16,7 +16,7 @@ public:
 
     // Functions
     void Generate(int pRow, int pCol);
-    void Render(SDL_Renderer* renderer);
+    void RenderFloors(SDL_Renderer* renderer);
     
     // We will need this later for collision!
     // It allows the player to ask "Is this spot a wall?"

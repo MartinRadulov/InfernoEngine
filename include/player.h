@@ -10,6 +10,7 @@
 // We need to know about the Level to check for walls!
 #include "level.h" 
 #include "utils.h"
+#include "collider.h"
 
 class Player{
 public:
@@ -17,11 +18,12 @@ public:
 
     void Update(const Uint8* keyState, Level& level);
 
-    void Render(SDL_Renderer* renderer);
+    void Render(std::vector<RenderObject>& renderList);
 
     float GetX() const {return m_x;}
     float GetY() const {return m_y;}
     float GetDmg() const {return m_damage;}
+    Collider& GetCollider() {return m_collider;}
 
     bool CanShoot();
     void Shoot();
@@ -31,18 +33,17 @@ public:
 private:
     float m_x;
     float m_y;
-    int m_height = M_ENEMY;
-    int m_width = M_ENEMY;
+    int m_height;
+    int m_width;
     Uint32 m_lastShotTime;
     Uint32 m_lastDamageTime;
     int m_invTime;
     bool m_isActive = true;
+    Collider m_collider;
 
     float m_speed = 2.5f;
     int m_fireRate;
     float m_damage = 3.5f;
     float m_health;
     float m_maxHealth;
-
-    bool CheckCollision(float newX, float newY, Level& level);
 };

@@ -1,12 +1,15 @@
 #include "../include/player.h"
 #include <iostream> // For debugging if needed
 
-Player::Player(float startX, float startY) {
+Player::Player(float startX, float startY)
+    : m_collider(S_ENEMY, M_ENEMY - (S_ENEMY / 2), (M_ENEMY - S_ENEMY) / 2, S_ENEMY / 2) 
+ {
     m_x = startX;
     m_y = startY;
     m_lastDamageTime = 0;
     m_invTime = 1000;
-
+    m_width = M_ENEMY;
+    m_height = M_ENEMY;
     m_maxHealth = 100;
     m_health = m_maxHealth;
     m_fireRate = 500;
@@ -23,63 +26,37 @@ void Player::Update(const Uint8* keyState, Level& level) {
     if (keyState[SDL_SCANCODE_A]) nextX -= m_speed;
     if (keyState[SDL_SCANCODE_D]) nextX += m_speed;
 
-    // 2. Resolve X Axis Collision
-    // We check X and Y separately. This allows "sliding" along walls.
-    if (!CheckCollision(nextX, m_y, level)) {
+    m_collider.SetPosition(nextX, m_y);
+    if(!m_collider.CheckMapCollision(level)){
         m_x = nextX;
     }
-
-    // 3. Resolve Y Axis Collision
-    if (!CheckCollision(m_x, nextY, level)) {
+    m_collider.SetPosition(m_x, nextY);
+    if(!m_collider.CheckMapCollision(level)){
         m_y = nextY;
     }
+
+    m_collider.SetPosition(m_x, m_y);
 }
 
-void Player::Render(SDL_Renderer* renderer) {
-    bool isInv = (SDL_GetTicks() - m_lastDamageTime < m_invTime);
-    if(isInv && (SDL_GetTicks() / 100) % 2 == 0){
-        return;
+void Player::Render(std::vector<RenderObject>& renderList) {
+    bool isInvincible = (SDL_GetTicks() - m_lastDamageTime < m_invTime);
+    bool blinkInvisible = (SDL_GetTicks() / 100) % 2 == 0;
+
+    if (isInvincible && blinkInvisible) {
+        return; // Don't add myself to the list!
     }
 
+    // 2. Create the Render Object
+    RenderObject pObj;
+    pObj.textureID = "isaac";
+    pObj.srcRect = {0, 0, SPRITE_SHEET_SIZE, SPRITE_SHEET_SIZE}; // Or calculate animation frame here
+    pObj.destRect = { (int)m_x, (int)m_y, m_width, m_height };
+    pObj.sortY = m_y + m_height; // Sort by feet
+    pObj.flip = SDL_FLIP_NONE;
 
-    // Animation Logic (Basic Cycle)
-    // 0 = Down, 1 = Right, 2 = Up, 3 = Left (Isaac Layout usually)
-    int currentRow = 0; 
-    int currentFrame = 0; // We will animate this later
-
-    TextureManager::GetInstance()->DrawFrame(
-        "isaac", 
-        (int)m_x, (int)m_y, 
-        m_width, m_height,       // DESTINATION (e.g., 64x64)
-        SPRITE_SHEET_SIZE, SPRITE_SHEET_SIZE, // SOURCE (256x256)
-        currentRow, currentFrame, 
-        renderer
-    );
-}
-
-// THE MATH PART
-//explain this whole part
-bool Player::CheckCollision(float newX, float newY, Level& level) {
-    if (newX < 0 || newX + m_width > SCREEN_WIDTH ||
-        newY < 0 || newY + m_height > SCREEN_HEIGHT) {
-        return true;
+    // 3. Add to list
+    renderList.push_back(pObj);
     }
-
-    int leftTileCol   = (int)(newX) / TILE_SIZE;
-    int topTileRow    = (int)(newY) / TILE_SIZE;
-
-    // Right-Bottom corner
-    int rightTileCol  = (int)(newX + m_width) / TILE_SIZE;
-    int bottomTileRow = (int)(newY + m_height) / TILE_SIZE;
-
-    // Check the Level array for walls (1) at these spots
-    if (level.GetTile(topTileRow, leftTileCol) == 1) return true;      // Hit Top-Left
-    if (level.GetTile(topTileRow, rightTileCol) == 1) return true;     // Hit Top-Right
-    if (level.GetTile(bottomTileRow, leftTileCol) == 1) return true;   // Hit Bottom-Left
-    if (level.GetTile(bottomTileRow, rightTileCol) == 1) return true;  // Hit Bottom-Right
-
-    return false; // No wall hit
-}
 
 bool Player::CanShoot(){
     Uint32 currentTime = SDL_GetTicks();

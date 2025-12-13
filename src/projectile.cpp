@@ -1,6 +1,7 @@
 #include "../include/projectile.h"
 
-Projectile::Projectile(float x, float y, float velX, float velY){
+Projectile::Projectile(float x, float y, float velX, float velY)
+    : m_collider(S_ENEMY, S_ENEMY,0 , 0){
     m_x = x;
     m_y = y;
 
@@ -9,18 +10,15 @@ Projectile::Projectile(float x, float y, float velX, float velY){
 }
 
 void Projectile::Update(Level& level){
-    float nextX = m_x;
-    float nextY = m_y;
+    m_x += m_velX;
+    m_y += m_velY;
 
-    nextX += m_velX;
-    nextY += m_velY;
+    // Sync the Collider to the new position
+    m_collider.SetPosition(m_x, m_y);
 
-    if(!CheckCollision(nextX, nextY, level)){
-        m_x = nextX;
-        m_y = nextY;
-    }
-    else{
-        m_isActive = false;
+    // Wall Collision Check
+    if (m_collider.CheckMapCollision(level)) {
+        m_isActive = false; // Destroy on wall hit
     }
 
     if(isOffScreen()){
@@ -28,18 +26,14 @@ void Projectile::Update(Level& level){
     }
 }
 
-void Projectile::Render(SDL_Renderer* renderer){
-    int currentRow = 0; 
-    int currentFrame = 0; // We will animate this later
-
-    TextureManager::GetInstance()->DrawFrame(
-        "rock", 
-        (int)m_x, (int)m_y, 
-        m_width, m_height,       // DESTINATION (e.g., 64x64)
-        SPRITE_SHEET_SIZE, SPRITE_SHEET_SIZE, // SOURCE (256x256)
-        currentRow, currentFrame, 
-        renderer
-    );
+void Projectile::Render(std::vector<RenderObject>& renderList){
+    RenderObject bObj;
+        bObj.textureID = "rock"; // Using rock texture for bullets per your code
+        bObj.srcRect = {0, 0, SPRITE_SHEET_SIZE, SPRITE_SHEET_SIZE};
+        bObj.destRect = {(int)m_x, (int)m_y, m_width, m_height};
+        bObj.sortY = m_y + m_height;
+        bObj.flip = SDL_FLIP_NONE;
+        renderList.push_back(bObj);
 }
 
 bool Projectile::isOffScreen(){

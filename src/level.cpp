@@ -36,7 +36,7 @@ void Level::Generate(int pRow, int pCol) {
     }
 }
 
-void Level::Render(SDL_Renderer* renderer) {
+void Level::RenderFloors(SDL_Renderer* renderer) {
     TextureManager* tm = TextureManager::GetInstance();
     for (int row = 0; row < MAP_ROWS; row++) {
         for (int col = 0; col < MAP_COLS; col++) {
@@ -44,9 +44,6 @@ void Level::Render(SDL_Renderer* renderer) {
             int yPos = row * TILE_SIZE;
 
             tm->Draw("floor", xPos, yPos, TILE_SIZE, TILE_SIZE, renderer);
-            if(m_mapData[row][col] == 1){
-                tm->Draw("rock", xPos, yPos, TILE_SIZE, TILE_SIZE, renderer);
-            }
 
             //Grid outline
             SDL_Rect tileRect = {xPos, yPos, TILE_SIZE, TILE_SIZE};

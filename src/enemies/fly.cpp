@@ -8,8 +8,14 @@ Fly::Fly(float x, float y) : Enemy(x, y, S_ENEMY, S_ENEMY){
 }
 
 void Fly::Update(Level& level, float playerX, float playerY){
-    if(playerX > m_x) m_x += m_speed;
-    if(playerX < m_x) m_x -= m_speed;
-    if(playerY > m_y) m_y += m_speed;
-    if(playerY < m_y) m_y -= m_speed;
+    float velX = 0;
+    float velY = 0;
+
+    if(playerX > m_x) velX = m_speed;
+    else velX = -m_speed;
+
+    if(playerY > m_y) velY = m_speed;
+    else velY = -m_speed;
+
+    MoveFlying(velX, velY);
 }

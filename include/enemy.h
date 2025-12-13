@@ -8,6 +8,7 @@
 #include "level.h"
 #include "TextureManager.h"
 #include "utils.h"
+#include "collider.h"
 #include <string>
 
 enum class EnemyState{
@@ -27,7 +28,7 @@ public:
 
     virtual void Update(Level& level, float playerX, float playerY) = 0;
 
-    virtual void Render(SDL_Renderer* renderer);
+    virtual void Render(std::vector<RenderObject>& renderList);
 
     void TakeDamage(float dmgNum);
 
@@ -38,6 +39,8 @@ public:
     int GetWidth() const {return m_width;}
     int GetHeight() const {return m_height;}
     float GetDmg() const {return m_damage;}
+    Collider& GetCollider() {return m_collider;}
+    std::string GetTextureID() const {return m_textureID;}
 protected:
     float m_x;
     float m_y;
@@ -48,6 +51,8 @@ protected:
     float m_damage;
     bool m_isActive = true;
     std::string m_textureID;
+    Collider m_collider;
 
-    bool CheckCollision(float newX, float newY, Level& level);
+    void MoveWithCollision(float velX, float velY, Level& level);
+    void MoveFlying(float velX, float velY);
 }; 
