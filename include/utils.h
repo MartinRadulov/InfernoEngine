@@ -3,6 +3,7 @@
 #include <SDL.h>
 #else
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h> 
 #endif
 
 const int SCREEN_WIDTH = 1920;

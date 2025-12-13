@@ -2,6 +2,8 @@
 #include <vector>
 #include <SDL2/SDL_image.h>
 #include <algorithm>
+#include <cstdlib>
+#include <ctime>
 //#include <SDL2/SDL_ttf.h> // (Later, for text)
 #include "../include/level.h"
 #include "../include/player.h"
@@ -12,6 +14,7 @@
 #include "../include/enemies/zombie.h"
 #include "../include/enemies/fly.h"
 #include "../include/enemies/stalker.h"
+#include "../include/dungeon.h"
 
 // Cross-platform include for SDL
 #if defined(_WIN32)
@@ -45,6 +48,12 @@ int main(int argc, char* argv[]) {
     enemies.push_back(new Stalker(300.0f, 350.0f));
 
     bool debugMode = false;
+
+    //DUNGEON TEST
+    std::srand(std::time(nullptr));
+    Dungeon testDungeon;
+    testDungeon.GenerateDungeon(15);
+    testDungeon.PrintMapToConsole();
 
     //Game running
     bool isRunning = true;
