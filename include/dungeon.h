@@ -1,23 +1,16 @@
 #pragma once
 #include <vector>
 #include <iostream>
+#include <queue>
 #include "utils.h"
-
-struct Vector21{
-    int x, y;
-};
-
-struct RoomCoordinate{
-    int x, y;
-    int distance;
-};
 
 enum class RoomType{
     NONE,
     NORMAL,
     START,
     BOSS,
-    TREASURE
+    TREASURE,
+    SHOP
 };
 
 struct RoomData{
@@ -27,6 +20,7 @@ struct RoomData{
     bool doorBottom = false;
     bool doorLeft = false;
     bool doorRight = false;
+    int stepDistance = -1;
 };
 
 class Dungeon{
@@ -41,10 +35,26 @@ public:
 private:
     static const int DUNGEON_SIZE = 10;
     RoomData m_grid[DUNGEON_SIZE][DUNGEON_SIZE];
-    
-    int CountNeighbours(int x, int y);
 
-    bool IsValidEmptySpot(int x, int y);
+    struct Point{
+    int x, y;
+    };
+    
+    int CountNeighbours(Point p);
 
     void PlaceSpecialRoom(RoomType type);
+
+    void CalculateStepDistance();
+
+    void UpdateNormalDoors();
+
+    bool HasConflictingNeighbour(Point p);
+
+    void ClearGrid();
+
+    void GenerateMainPath(int maxRooms);
+
+    void ConnectRooms(Point a, Point b);
+
+    std::vector<Point> GetValidEmptyNeighbors(Point p);
 };

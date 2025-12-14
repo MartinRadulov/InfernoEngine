@@ -50,7 +50,7 @@ int main(int argc, char* argv[]) {
     bool debugMode = false;
 
     //DUNGEON TEST
-    std::srand(std::time(nullptr));
+    //std::srand(std::time(nullptr));
     Dungeon testDungeon;
     testDungeon.GenerateDungeon(15);
     testDungeon.PrintMapToConsole();
