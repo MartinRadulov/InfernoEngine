@@ -3,7 +3,8 @@
 #include <iostream>
 #include <queue>
 #include <set>
-#include "utils.h"
+#include <map>
+#include "room.h"
 
 enum class RoomType{
     NONE,
@@ -22,60 +23,69 @@ enum class RoomShape{
     LShape
 };
 
-struct RoomData{
-    RoomType type = RoomType::NONE;
-    RoomShape shape = RoomShape::Dim1x1;
-    int id = 0;
-    bool active = false;
-    bool doorTop = false;
-    bool doorBottom = false;
-    bool doorLeft = false;
-    bool doorRight = false;
-    int stepDistance = -1;
+// Lightweight struct for door rendering
+struct DoorState {
+    bool top = false;
+    bool bottom = false;
+    bool left = false;
+    bool right = false;
 };
 
 class Dungeon{
 public:
     Dungeon();
-
     void GenerateDungeon(int maxRooms);
-    bool RoomExists(int x, int y);
     void PrintMapToConsole();
-
-    RoomData GetRoom(int x, int y);
-private:
-    static const int DUNGEON_SIZE = 12;
-    RoomData m_grid[DUNGEON_SIZE][DUNGEON_SIZE];
-
-    struct Point{
-    int x, y;
-    };
-
-    int m_lastRoomID = 0;
-
-    void GenerateComplexRooms();
-
-    bool TryCreateBigRoom(int x, int y);
-    bool TryCreateSkinnyRoom(int x, int y);
-    bool TryCreateLRoom(int x, int y);
     
-    int CountNeighbours(Point p);
-
-    void PlaceSpecialRoom(RoomType type);
-
-    void CalculateStepDistance();
-
-    void UpdateNormalDoors();
-
-    bool HasConflictingNeighbour(Point p);
-
-    void ClearGrid();
-
+    // Spatial queries (grid-based)
+    int GetRoomIDAt(int x, int y) const;
+    bool IsPositionValid(int x, int y) const;
+    
+    // Room queries (Room-based) - PRIMARY INTERFACE
+    Room* GetRoomAt(int x, int y);
+    Room* GetRoomByID(int id);
+    Room* GetStartRoom();
+    std::vector<Room*> GetAllRooms();
+    std::vector<Room*> GetSpecialRooms();
+    std::vector<Room*> GetConnectedRooms(int roomID);
+    
+    static const int DUNGEON_SIZE = 12;
+    
+private:
+    // LIGHTWEIGHT grid - just stores room IDs for spatial lookup
+    int m_gridRoomIDs[DUNGEON_SIZE][DUNGEON_SIZE];
+    
+    // Door state for rendering (could be computed on-demand but cached for performance)
+    DoorState m_doors[DUNGEON_SIZE][DUNGEON_SIZE];
+    
+    // PRIMARY DATA: Room objects
+    std::map<int, Room> m_rooms;
+    int m_lastRoomID = 0;
+    int m_startRoomID = -1;
+    
+    // Generation helpers
+    Room* CreateRoom(RoomType type, RoomShape shape, const std::vector<Point>& cells);
+    void ConnectRooms(Room* a, Room* b);
+    void UpdateDoorStates(); // Sync door rendering state with room connections
+    
+    // Generation phases
+    void ClearAll();
     void GenerateMainPath(int maxRooms);
-
-    void ConnectRooms(Point a, Point b);
-
-    std::vector<Point> GetValidEmptyNeighbors(Point p);
-
-    bool IsFree(int x, int y);
+    void GenerateComplexRooms();
+    void CleanupInvalidConnections(); // Remove connections that violate shape rules
+    void AutoConnectNormalRooms(); // Auto-connect adjacent normal/start rooms
+    void PlaceSpecialRoom(RoomType type);
+    void CalculateStepDistances();
+    
+    // Room shape creation
+    bool TryCreateBigRoom(Room* room);
+    bool TryCreateSkinnyRoom(Room* room);
+    bool TryCreateLRoom(Room* room);
+    
+    // Utilities
+    bool IsCellFree(int x, int y) const;
+    int CountOccupiedNeighbours(Point p) const;
+    bool HasConflictingNeighbour(Point p) const;
+    std::vector<Point> GetValidEmptyNeighbors(Point p) const;
+    Room* GetRoomAtCell(Point p);
 };

@@ -12,143 +12,735 @@ Dungeon::Dungeon(){
 }
 
 void Dungeon::GenerateDungeon(int maxRooms){
-    ClearGrid();
-
+    ClearAll();
     GenerateMainPath(maxRooms);
-
     GenerateComplexRooms();
-
-    UpdateNormalDoors();
-
+    AutoConnectNormalRooms(); // NEW: Auto-connect adjacent normal rooms
     PlaceSpecialRoom(RoomType::BOSS);
     PlaceSpecialRoom(RoomType::SHOP);
     PlaceSpecialRoom(RoomType::TREASURE);
-
-    //UpdateAllDoors();
+    CalculateStepDistances();
+    UpdateDoorStates(); // Sync rendering state
 }
 
-bool Dungeon::RoomExists(int x, int y){
-    if(x < 0 || x >= DUNGEON_SIZE || y < 0 || y >= DUNGEON_SIZE) return false;
-    return m_grid[y][x].active;
+void Dungeon::ClearAll(){
+    // Clear rooms
+    m_rooms.clear();
+    m_lastRoomID = 0;
+    m_startRoomID = -1;
+    
+    // Clear grid
+    for(int y = 0; y < DUNGEON_SIZE; y++){
+        for(int x = 0; x < DUNGEON_SIZE; x++){
+            m_gridRoomIDs[y][x] = -1;
+            m_doors[y][x] = DoorState();
+        }
+    }
 }
 
-int Dungeon::CountNeighbours(Point p){
+Room* Dungeon::CreateRoom(RoomType type, RoomShape shape, const std::vector<Point>& cells){
+    int id = m_lastRoomID++;
+    Room room(id, type, shape);
+    
+    // Add cells to room
+    for(const auto& cell : cells){
+        room.AddCell(cell);
+        // Update grid
+        if(cell.x >= 0 && cell.x < DUNGEON_SIZE && cell.y >= 0 && cell.y < DUNGEON_SIZE){
+            m_gridRoomIDs[cell.y][cell.x] = id;
+        }
+    }
+    
+    // Store room
+    m_rooms[id] = room;
+    
+    // Track start room
+    if(type == RoomType::START){
+        m_startRoomID = id;
+    }
+    
+    return &m_rooms[id];
+}
+
+void Dungeon::ConnectRooms(Room* a, Room* b){
+    if(!a || !b || a->GetID() == b->GetID()) return;
+    
+    // Bidirectional connection
+    a->ConnectTo(b->GetID());
+    b->ConnectTo(a->GetID());
+}
+
+int Dungeon::GetRoomIDAt(int x, int y) const {
+    if(!IsPositionValid(x, y)) return -1;
+    return m_gridRoomIDs[y][x];
+}
+
+bool Dungeon::IsPositionValid(int x, int y) const {
+    return x >= 0 && x < DUNGEON_SIZE && y >= 0 && y < DUNGEON_SIZE;
+}
+
+Room* Dungeon::GetRoomAt(int x, int y){
+    int id = GetRoomIDAt(x, y);
+    return (id >= 0) ? GetRoomByID(id) : nullptr;
+}
+
+Room* Dungeon::GetRoomByID(int id){
+    auto it = m_rooms.find(id);
+    return (it != m_rooms.end()) ? &it->second : nullptr;
+}
+
+Room* Dungeon::GetStartRoom(){
+    return GetRoomByID(m_startRoomID);
+}
+
+std::vector<Room*> Dungeon::GetAllRooms(){
+    std::vector<Room*> rooms;
+    for(auto& [id, room] : m_rooms){
+        rooms.push_back(&room);
+    }
+    return rooms;
+}
+
+std::vector<Room*> Dungeon::GetSpecialRooms(){
+    std::vector<Room*> special;
+    for(auto& [id, room] : m_rooms){
+        if(room.IsSpecialRoom()){
+            special.push_back(&room);
+        }
+    }
+    return special;
+}
+
+std::vector<Room*> Dungeon::GetConnectedRooms(int roomID){
+    std::vector<Room*> connected;
+    Room* room = GetRoomByID(roomID);
+    if(!room) return connected;
+    
+    for(int connectedID : room->GetConnectedRoomIDs()){
+        Room* connectedRoom = GetRoomByID(connectedID);
+        if(connectedRoom){
+            connected.push_back(connectedRoom);
+        }
+    }
+    return connected;
+}
+
+void Dungeon::GenerateMainPath(int maxRooms){
+    Point startPos = {DUNGEON_SIZE / 2, DUNGEON_SIZE / 2};
+    
+    // Create start room
+    Room* startRoom = CreateRoom(RoomType::START, RoomShape::Dim1x1, {startPos});
+    
+    int roomCount = 1;
+    std::vector<Room*> frontier;
+    frontier.push_back(startRoom);
+    
+    while(roomCount < maxRooms && !frontier.empty()){
+        int idx = std::rand() % frontier.size();
+        Room* current = frontier[idx];
+        Point currentCell = current->GetFirstCell();
+        
+        std::vector<Point> neighbors = GetValidEmptyNeighbors(currentCell);
+        
+        if(neighbors.empty()){
+            frontier.erase(frontier.begin() + idx);
+            continue;
+        }
+        
+        Point newPos = neighbors[std::rand() % neighbors.size()];
+        Room* newRoom = CreateRoom(RoomType::NORMAL, RoomShape::Dim1x1, {newPos});
+        ConnectRooms(current, newRoom);
+        roomCount++;
+        
+        frontier.push_back(newRoom);
+        
+        // Occasionally stop expanding from this room
+        if(std::rand() % 100 < 30){
+            frontier.erase(frontier.begin() + idx);
+        }
+    }
+}
+
+std::vector<Point> Dungeon::GetValidEmptyNeighbors(Point p) const {
+    std::vector<Point> neighbors;
+    
+    const Point directions[4] = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}};
+    
+    for(const auto& dir : directions){
+        Point neighbor = {p.x + dir.x, p.y + dir.y};
+        
+        // Stay away from edges
+        if(neighbor.x < 1 || neighbor.x >= DUNGEON_SIZE - 1 ||
+           neighbor.y < 1 || neighbor.y >= DUNGEON_SIZE - 1){
+            continue;
+        }
+        
+        if(IsCellFree(neighbor.x, neighbor.y)){
+            neighbors.push_back(neighbor);
+        }
+    }
+    
+    return neighbors;
+}
+
+bool Dungeon::IsCellFree(int x, int y) const {
+    // Check if cell is in valid range (not at edges)
+    if(x < 1 || x >= DUNGEON_SIZE - 1 || y < 1 || y >= DUNGEON_SIZE - 1){
+        return false;
+    }
+    return IsPositionValid(x, y) && m_gridRoomIDs[y][x] == -1;
+}
+
+int Dungeon::CountOccupiedNeighbours(Point p) const {
     int count = 0;
-    if(RoomExists(p.x, p.y - 1)) count++;
-    if(RoomExists(p.x, p.y + 1)) count++;
-    if(RoomExists(p.x - 1, p.y)) count++;
-    if(RoomExists(p.x + 1, p.y)) count++;
+    if(!IsCellFree(p.x, p.y - 1)) count++;
+    if(!IsCellFree(p.x, p.y + 1)) count++;
+    if(!IsCellFree(p.x - 1, p.y)) count++;
+    if(!IsCellFree(p.x + 1, p.y)) count++;
     return count;
 }
 
-// int Dungeon::CountNeighbours(Point p){
-//     std::set<int> uniqueNeighbors;
+bool Dungeon::HasConflictingNeighbour(Point p) const {
+    auto isConflict = [this](int x, int y) {
+        Room* room = const_cast<Dungeon*>(this)->GetRoomAt(x, y);
+        return room && room->IsSpecialRoom();
+    };
     
-//     // Check 4 directions
-//     Point dirs[4] = {{0,-1}, {0,1}, {-1,0}, {1,0}};
-//     for(auto& d : dirs) {
-//         if(RoomExists(p.x + d.x, p.y + d.y)) {
-//             uniqueNeighbors.insert(m_grid[p.y + d.y][p.x + d.x].id);
-//         }
-//     }
-    
-//     return uniqueNeighbors.size();
-// }
+    return isConflict(p.x, p.y - 1) || isConflict(p.x, p.y + 1) ||
+           isConflict(p.x - 1, p.y) || isConflict(p.x + 1, p.y);
+}
 
-void Dungeon::PrintMapToConsole() {
-    // 1. Configuration
-    const int CELL_W = 4; // Width (e.g., "+---")
-    const int CELL_H = 2; // Height (e.g., "|   ")
+void Dungeon::GenerateComplexRooms(){
+    std::vector<Room*> normalRooms;
+    for(auto& [id, room] : m_rooms){
+        if(room.GetType() == RoomType::NORMAL && room.GetShape() == RoomShape::Dim1x1){
+            normalRooms.push_back(&room);
+        }
+    }
+    
+    std::random_shuffle(normalRooms.begin(), normalRooms.end());
+    
+    for(Room* room : normalRooms){
+        if(room->GetShape() != RoomShape::Dim1x1) continue;
+        
+        int roll = std::rand() % 100;
+        
+        if(roll < 10){
+            if(TryCreateBigRoom(room)) continue;
+        }
+        
+        if(roll < 25){
+            if(TryCreateLRoom(room)) continue;
+        }
+        
+        if(roll < 40){
+            if(TryCreateSkinnyRoom(room)) continue;
+        }
+    }
+    
+    // CRITICAL: Remove invalid connections after shape changes
+    CleanupInvalidConnections();
+}
+
+bool Dungeon::TryCreateBigRoom(Room* room){
+    Point origin = room->GetFirstCell();
+    int x = origin.x, y = origin.y;
+    
+    // Try all 4 orientations for 2x2
+    std::vector<std::vector<Point>> patterns = {
+        {{x, y}, {x+1, y}, {x, y+1}, {x+1, y+1}},     // bottom-right
+        {{x, y}, {x-1, y}, {x, y+1}, {x-1, y+1}},     // bottom-left
+        {{x, y}, {x-1, y}, {x, y-1}, {x-1, y-1}},     // top-left
+        {{x, y}, {x+1, y}, {x, y-1}, {x+1, y-1}}      // top-right
+    };
+    
+    for(const auto& pattern : patterns){
+        bool allFree = true;
+        for(size_t i = 1; i < pattern.size(); i++){ // Skip first (already exists)
+            if(!IsCellFree(pattern[i].x, pattern[i].y)){
+                allFree = false;
+                break;
+            }
+        }
+        
+        if(allFree){
+            // Expand room
+            room->SetShape(RoomShape::Dim2x2);
+            for(size_t i = 1; i < pattern.size(); i++){
+                room->AddCell(pattern[i]);
+                m_gridRoomIDs[pattern[i].y][pattern[i].x] = room->GetID();
+            }
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+bool Dungeon::TryCreateSkinnyRoom(Room* room){
+    Point origin = room->GetFirstCell();
+    int x = origin.x, y = origin.y;
+    
+    if(std::rand() % 2 == 0){
+        // Horizontal (2x1) - BOTH cells can't have vertical neighbors
+        bool originNeedsVertical = !IsCellFree(x, y-1) || !IsCellFree(x, y+1);
+        if(originNeedsVertical) return false; // Origin already has vertical neighbors
+        
+        std::vector<Point> expansions = {{x+1, y}, {x-1, y}};
+        for(const auto& exp : expansions){
+            if(!IsCellFree(exp.x, exp.y)) continue;
+            
+            // Check if expansion cell ALSO has no vertical neighbors
+            bool expNeedsVertical = !IsCellFree(exp.x, exp.y-1) || !IsCellFree(exp.x, exp.y+1);
+            if(expNeedsVertical) continue; // Expansion has vertical neighbors, skip
+            
+            // Both cells are clear! Create horizontal room
+            room->SetShape(RoomShape::Dim2x1);
+            room->AddCell(exp);
+            m_gridRoomIDs[exp.y][exp.x] = room->GetID();
+            return true;
+        }
+    } else {
+        // Vertical (1x2) - BOTH cells can't have horizontal neighbors
+        bool originNeedsHorizontal = !IsCellFree(x-1, y) || !IsCellFree(x+1, y);
+        if(originNeedsHorizontal) return false; // Origin already has horizontal neighbors
+        
+        std::vector<Point> expansions = {{x, y+1}, {x, y-1}};
+        for(const auto& exp : expansions){
+            if(!IsCellFree(exp.x, exp.y)) continue;
+            
+            // Check if expansion cell ALSO has no horizontal neighbors
+            bool expNeedsHorizontal = !IsCellFree(exp.x-1, exp.y) || !IsCellFree(exp.x+1, exp.y);
+            if(expNeedsHorizontal) continue; // Expansion has horizontal neighbors, skip
+            
+            // Both cells are clear! Create vertical room
+            room->SetShape(RoomShape::Dim1x2);
+            room->AddCell(exp);
+            m_gridRoomIDs[exp.y][exp.x] = room->GetID();
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+bool Dungeon::TryCreateLRoom(Room* room){
+    Point origin = room->GetFirstCell();
+    int x = origin.x, y = origin.y;
+    
+    std::vector<std::vector<Point>> patterns = {
+        {{x, y}, {x+1, y}, {x, y+1}, {x+1, y+1}},
+        {{x, y}, {x-1, y}, {x, y+1}, {x-1, y+1}},
+        {{x, y}, {x-1, y}, {x, y-1}, {x-1, y-1}},
+        {{x, y}, {x+1, y}, {x, y-1}, {x+1, y-1}}
+    };
+    
+    for(const auto& pattern : patterns){
+        bool allFree = true;
+        for(size_t i = 1; i < pattern.size(); i++){
+            if(!IsCellFree(pattern[i].x, pattern[i].y)){
+                allFree = false;
+                break;
+            }
+        }
+        
+        if(allFree){
+            // Pick 3 of 4 cells randomly
+            int skip = std::rand() % 3;
+            room->SetShape(RoomShape::LShape);
+            
+            for(size_t i = 1; i < pattern.size(); i++){
+                if(static_cast<int>(i-1) == skip) continue;
+                
+                room->AddCell(pattern[i]);
+                m_gridRoomIDs[pattern[i].y][pattern[i].x] = room->GetID();
+            }
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+void Dungeon::PlaceSpecialRoom(RoomType type){
+    CalculateStepDistances(); // Ensure distances are current
+    
+    // Get all normal rooms sorted by distance
+    std::vector<Room*> candidates;
+    for(auto& [id, room] : m_rooms){
+        if(room.GetType() == RoomType::NORMAL && room.GetStepDistance() >= 0){
+            candidates.push_back(&room);
+        }
+    }
+    
+    std::sort(candidates.begin(), candidates.end(),
+        [](const Room* a, const Room* b){
+            return a->GetStepDistance() > b->GetStepDistance();
+        });
+    
+    // STRATEGY 1: Create new 1x1 branch off far room
+    // Check ALL cells of each candidate room for valid expansion spots
+    for(Room* candidate : candidates){
+        if(HasConflictingNeighbour(candidate->GetFirstCell())) continue;
+        
+        // Try EVERY cell in this room (not just first)
+        for(const Point& cell : candidate->GetCells()){
+            std::vector<Point> emptyNeighbors = GetValidEmptyNeighbors(cell);
+            
+            for(const auto& spot : emptyNeighbors){
+                // Must be a dead-end position (only 1 neighbor)
+                int neighborCount = CountOccupiedNeighbours(spot);
+                if(neighborCount != 1) continue;
+                
+                // Must not be next to special rooms
+                if(HasConflictingNeighbour(spot)) continue;
+                
+                // Check if THIS cell's room shape allows connection in this direction
+                int dx = spot.x - cell.x;
+                int dy = spot.y - cell.y;
+                bool isVertical = (dx == 0);
+                bool isHorizontal = (dy == 0);
+                
+                // Horizontal skinny rooms (2x1) can't have vertical doors
+                if(candidate->GetShape() == RoomShape::Dim2x1 && isVertical) continue;
+                // Vertical skinny rooms (1x2) can't have horizontal doors  
+                if(candidate->GetShape() == RoomShape::Dim1x2 && isHorizontal) continue;
+                
+                // VALID SPOT! Create 1x1 special room
+                Room* newRoom = CreateRoom(type, RoomShape::Dim1x1, {spot});
+                ConnectRooms(candidate, newRoom);
+                return; // SUCCESS
+            }
+        }
+    }
+    
+    // STRATEGY 2: Convert existing 1x1 dead-end (preserves rules)
+    for(Room* candidate : candidates){
+        // MUST be 1x1
+        if(candidate->GetShape() != RoomShape::Dim1x1) continue;
+        
+        // MUST be dead-end (exactly 1 connection)
+        if(!candidate->IsDeadEnd()) continue;
+        
+        // MUST not neighbor special rooms
+        Point candidateCell = candidate->GetFirstCell();
+        if(HasConflictingNeighbour(candidateCell)) continue;
+        
+        // Convert it
+        candidate->SetType(type);
+        return; // SUCCESS
+    }
+    
+    // STRATEGY 3: Try ALL normal rooms (not just far ones) for branching
+    for(auto& [id, room] : m_rooms){
+        if(room.GetType() != RoomType::NORMAL) continue;
+        
+        // Try every cell of this room
+        for(const Point& cell : room.GetCells()){
+            std::vector<Point> emptyNeighbors = GetValidEmptyNeighbors(cell);
+            
+            for(const auto& spot : emptyNeighbors){
+                int neighborCount = CountOccupiedNeighbours(spot);
+                if(neighborCount != 1) continue;
+                if(HasConflictingNeighbour(spot)) continue;
+                
+                // Check shape compatibility
+                int dx = spot.x - cell.x;
+                int dy = spot.y - cell.y;
+                bool isVertical = (dx == 0);
+                bool isHorizontal = (dy == 0);
+                
+                if(room.GetShape() == RoomShape::Dim2x1 && isVertical) continue;
+                if(room.GetShape() == RoomShape::Dim1x2 && isHorizontal) continue;
+                
+                Room* newRoom = CreateRoom(type, RoomShape::Dim1x1, {spot});
+                ConnectRooms(&room, newRoom);
+                return; // SUCCESS
+            }
+        }
+    }
+    
+    // If we get here, the dungeon is too dense. This should be extremely rare.
+    std::cout << "ERROR: Could not place " << 
+        (type == RoomType::BOSS ? "BOSS" : 
+         type == RoomType::TREASURE ? "TREASURE" : "SHOP") 
+        << " room while following placement rules!" << std::endl;
+    std::cout << "Dungeon may be too compact. Try generating with fewer rooms." << std::endl;
+}
+
+void Dungeon::CalculateStepDistances(){
+    // Reset all distances
+    for(auto& [id, room] : m_rooms){
+        room.SetStepDistance(-1);
+    }
+    
+    Room* startRoom = GetStartRoom();
+    if(!startRoom) return;
+    
+    // BFS from start room
+    std::queue<int> q;
+    std::set<int> visited;
+    
+    startRoom->SetStepDistance(0);
+    q.push(startRoom->GetID());
+    visited.insert(startRoom->GetID());
+    
+    while(!q.empty()){
+        int currentID = q.front();
+        q.pop();
+        
+        Room* current = GetRoomByID(currentID);
+        if(!current) continue;
+        
+        int currentDist = current->GetStepDistance();
+        
+        for(int neighborID : current->GetConnectedRoomIDs()){
+            if(visited.find(neighborID) != visited.end()) continue;
+            
+            Room* neighbor = GetRoomByID(neighborID);
+            if(neighbor){
+                neighbor->SetStepDistance(currentDist + 1);
+                q.push(neighborID);
+                visited.insert(neighborID);
+            }
+        }
+    }
+}
+
+void Dungeon::CleanupInvalidConnections(){
+    for(auto& [id, room] : m_rooms){
+        // Only need to check skinny rooms
+        if(room.GetShape() != RoomShape::Dim2x1 && room.GetShape() != RoomShape::Dim1x2){
+            continue;
+        }
+        
+        // Get all connections
+        std::vector<int> connectionsToRemove;
+        for(int connectedID : room.GetConnectedRoomIDs()){
+            Room* connected = GetRoomByID(connectedID);
+            if(!connected) continue;
+            
+            // Check if connection is valid based on room shape
+            bool isValidConnection = false;
+            
+            // Check all pairs of cells to determine direction
+            for(const Point& myCell : room.GetCells()){
+                for(const Point& theirCell : connected->GetCells()){
+                    int dx = theirCell.x - myCell.x;
+                    int dy = theirCell.y - myCell.y;
+                    
+                    // They're adjacent?
+                    if(std::abs(dx) + std::abs(dy) == 1){
+                        bool isVerticalConnection = (dx == 0); // same column
+                        bool isHorizontalConnection = (dy == 0); // same row
+                        
+                        // Check if this connection is allowed
+                        if(room.GetShape() == RoomShape::Dim2x1){
+                            // Horizontal room - only horizontal connections allowed
+                            if(isHorizontalConnection){
+                                isValidConnection = true;
+                            }
+                        } else if(room.GetShape() == RoomShape::Dim1x2){
+                            // Vertical room - only vertical connections allowed
+                            if(isVerticalConnection){
+                                isValidConnection = true;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if(!isValidConnection){
+                connectionsToRemove.push_back(connectedID);
+            }
+        }
+        
+        // Remove invalid connections (bidirectional)
+        for(int badID : connectionsToRemove){
+            room.DisconnectFrom(badID);
+            Room* other = GetRoomByID(badID);
+            if(other){
+                other->DisconnectFrom(room.GetID());
+            }
+        }
+    }
+}
+
+void Dungeon::AutoConnectNormalRooms(){
+    // Auto-connect adjacent Normal/Start rooms (like in Binding of Isaac)
+    for(int y = 0; y < DUNGEON_SIZE; y++){
+        for(int x = 0; x < DUNGEON_SIZE; x++){
+            Room* room = GetRoomAt(x, y);
+            if(!room) continue;
+            
+            // Only auto-connect normal and start rooms
+            if(room->GetType() != RoomType::NORMAL && room->GetType() != RoomType::START){
+                continue;
+            }
+            
+            // Check all 4 neighbors
+            struct {int dx, dy; bool isHorizontal;} dirs[4] = {
+                {0, -1, false}, {0, 1, false}, {-1, 0, true}, {1, 0, true}
+            };
+            
+            for(const auto& dir : dirs){
+                Room* neighbor = GetRoomAt(x + dir.dx, y + dir.dy);
+                if(!neighbor) continue;
+                
+                // Only connect to Normal/Start rooms
+                if(neighbor->GetType() != RoomType::NORMAL && 
+                   neighbor->GetType() != RoomType::START){
+                    continue;
+                }
+                
+                // Don't connect if already same room (merged cells)
+                if(room->GetID() == neighbor->GetID()) continue;
+                
+                // Check shape compatibility
+                // Horizontal rooms (2x1) can't have vertical doors
+                // Vertical rooms (1x2) can't have horizontal doors
+                if(room->GetShape() == RoomShape::Dim2x1 && !dir.isHorizontal) continue;
+                if(room->GetShape() == RoomShape::Dim1x2 && dir.isHorizontal) continue;
+                if(neighbor->GetShape() == RoomShape::Dim2x1 && !dir.isHorizontal) continue;
+                if(neighbor->GetShape() == RoomShape::Dim1x2 && dir.isHorizontal) continue;
+                
+                // Connect!
+                ConnectRooms(room, neighbor);
+            }
+        }
+    }
+}
+
+void Dungeon::UpdateDoorStates(){
+    // Clear all doors
+    for(int y = 0; y < DUNGEON_SIZE; y++){
+        for(int x = 0; x < DUNGEON_SIZE; x++){
+            m_doors[y][x] = DoorState();
+        }
+    }
+    
+    // Set doors based on room connections
+    for(int y = 0; y < DUNGEON_SIZE; y++){
+        for(int x = 0; x < DUNGEON_SIZE; x++){
+            Room* room = GetRoomAt(x, y);
+            if(!room) continue;
+            
+            // Check all 4 directions
+            Room* topRoom = GetRoomAt(x, y-1);
+            Room* bottomRoom = GetRoomAt(x, y+1);
+            Room* leftRoom = GetRoomAt(x-1, y);
+            Room* rightRoom = GetRoomAt(x+1, y);
+            
+            // Same room = no door needed (merged cells)
+            // Connected different rooms = door
+            if(topRoom && topRoom->GetID() != room->GetID() && 
+               room->IsConnectedTo(topRoom->GetID())){
+                m_doors[y][x].top = true;
+            }
+            
+            if(bottomRoom && bottomRoom->GetID() != room->GetID() && 
+               room->IsConnectedTo(bottomRoom->GetID())){
+                m_doors[y][x].bottom = true;
+            }
+            
+            if(leftRoom && leftRoom->GetID() != room->GetID() && 
+               room->IsConnectedTo(leftRoom->GetID())){
+                m_doors[y][x].left = true;
+            }
+            
+            if(rightRoom && rightRoom->GetID() != room->GetID() && 
+               room->IsConnectedTo(rightRoom->GetID())){
+                m_doors[y][x].right = true;
+            }
+        }
+    }
+}
+
+void Dungeon::PrintMapToConsole(){
+    const int CELL_W = 4;
+    const int CELL_H = 2;
     
     int canvasW = DUNGEON_SIZE * CELL_W + 1;
     int canvasH = DUNGEON_SIZE * CELL_H + 1;
-
-    // 2. Create Buffer (filled with empty spaces)
+    
     std::vector<std::string> canvas(canvasH, std::string(canvasW, ' '));
-
-    // 3. Draw the Map
-    for (int y = 0; y < DUNGEON_SIZE; y++) {
-        for (int x = 0; x < DUNGEON_SIZE; x++) {
+    
+    // Draw map
+    for(int y = 0; y < DUNGEON_SIZE; y++){
+        for(int x = 0; x < DUNGEON_SIZE; x++){
+            Room* room = GetRoomAt(x, y);
             
-            // --- DRAW CORNERS (+) ---
-            if (m_grid[y][x].active) {
+            if(room){
                 int py = y * CELL_H;
                 int px = x * CELL_W;
-                int id = m_grid[y][x].id;
-
-                // Helper to check if a neighbor has the same ID
-                auto SameID = [&](int ny, int nx) {
-                    if (ny < 0 || ny >= DUNGEON_SIZE || nx < 0 || nx >= DUNGEON_SIZE) return false;
-                    return m_grid[ny][nx].active && m_grid[ny][nx].id == id;
+                int id = room->GetID();
+                
+                // Helper to check if neighbor is same room
+                auto SameRoom = [&](int ny, int nx){
+                    Room* neighbor = GetRoomAt(nx, ny);
+                    return neighbor && neighbor->GetID() == id;
                 };
-
-                // Top-Left Corner (Check Left and Up)
-                if (! (SameID(y, x-1) && SameID(y-1, x) && SameID(y-1, x-1)) )
-                    canvas[py][px] = '+';             
-
-                // Top-Right Corner (Check Right and Up)
-                if (! (SameID(y, x+1) && SameID(y-1, x) && SameID(y-1, x+1)) )
-                    canvas[py][px + CELL_W] = '+';    
-
-                // Bottom-Left Corner (Check Left and Down)
-                if (! (SameID(y, x-1) && SameID(y+1, x) && SameID(y+1, x-1)) )
-                    canvas[py + CELL_H][px] = '+';    
-
-                // Bottom-Right Corner (Check Right and Down)
-                if (! (SameID(y, x+1) && SameID(y+1, x) && SameID(y+1, x+1)) )
-                    canvas[py + CELL_H][px + CELL_W] = '+'; 
+                
+                // Draw corners
+                if(!(SameRoom(y, x-1) && SameRoom(y-1, x) && SameRoom(y-1, x-1)))
+                    canvas[py][px] = '+';
+                
+                if(!(SameRoom(y, x+1) && SameRoom(y-1, x) && SameRoom(y-1, x+1)))
+                    canvas[py][px + CELL_W] = '+';
+                
+                if(!(SameRoom(y, x-1) && SameRoom(y+1, x) && SameRoom(y+1, x-1)))
+                    canvas[py + CELL_H][px] = '+';
+                
+                if(!(SameRoom(y, x+1) && SameRoom(y+1, x) && SameRoom(y+1, x+1)))
+                    canvas[py + CELL_H][px + CELL_W] = '+';
             }
-
-            // --- DRAW TOP WALLS (---) or DOORS (.) ---
-            int topY = y * CELL_H;
-            int topX_Start = x * CELL_W + 1;
-
-            bool currActive = m_grid[y][x].active;
-            bool upActive = (y > 0) ? m_grid[y - 1][x].active : false;
             
-            bool isSameRoom = (y > 0 && currActive && upActive && m_grid[y][x].id == m_grid[y-1][x].id);
-            bool isDoor = (currActive && m_grid[y][x].doorTop) || (upActive && m_grid[y-1][x].doorBottom);
-
-            if (!currActive && !upActive) {
-                // Empty void: do nothing
-            } else if (isSameRoom) {
-                // BIG ROOM MERGE: Leave as ' ' to look clean
-            } else if (isDoor) {
-                // DOOR: Draw a dot so we can see the connection!
-                canvas[topY][topX_Start + 1] = '.'; 
-            } else {
-                // WALL: Draw '---'
-                for(int k=0; k<3; k++) canvas[topY][topX_Start + k] = '-';
+            // Draw top walls/doors
+            int topY = y * CELL_H;
+            int topX = x * CELL_W + 1;
+            
+            Room* currRoom = GetRoomAt(x, y);
+            Room* upRoom = GetRoomAt(x, y-1);
+            
+            bool isSameRoom = currRoom && upRoom && currRoom->GetID() == upRoom->GetID();
+            bool isDoor = (currRoom || upRoom) && m_doors[y][x].top;
+            
+            if(currRoom || upRoom){
+                if(isSameRoom){
+                    // Same room - leave blank
+                } else if(isDoor){
+                    canvas[topY][topX + 1] = '.';
+                } else {
+                    for(int k = 0; k < 3; k++) canvas[topY][topX + k] = '-';
+                }
             }
-
-            // --- DRAW LEFT WALLS (|) or DOORS (.) ---
+            
+            // Draw left walls/doors
             int midY = y * CELL_H + 1;
             int leftX = x * CELL_W;
-
-            bool leftActive = (x > 0) ? m_grid[y][x - 1].active : false;
             
-            isSameRoom = (x > 0 && currActive && leftActive && m_grid[y][x].id == m_grid[y][x-1].id);
-            isDoor = (currActive && m_grid[y][x].doorLeft) || (leftActive && m_grid[y][x-1].doorRight);
-
-            if (!currActive && !leftActive) {
-                // Empty void
-            } else if (isSameRoom) {
-                // BIG ROOM MERGE: Leave as ' '
-            } else if (isDoor) {
-                // DOOR: Draw a dot
-                canvas[midY][leftX] = '.';
-            } else {
-                // WALL: Draw '|'
-                canvas[midY][leftX] = '|';
+            Room* leftRoom = GetRoomAt(x-1, y);
+            
+            isSameRoom = currRoom && leftRoom && currRoom->GetID() == leftRoom->GetID();
+            isDoor = (currRoom || leftRoom) && m_doors[y][x].left;
+            
+            if(currRoom || leftRoom){
+                if(isSameRoom){
+                    // Same room - leave blank
+                } else if(isDoor){
+                    canvas[midY][leftX] = '.';
+                } else {
+                    canvas[midY][leftX] = '|';
+                }
             }
-
-            // --- DRAW CENTER SYMBOL ---
+            
+            // Draw center symbol
             int centerY = y * CELL_H + 1;
             int centerX = x * CELL_W + 2;
-
-            if (m_grid[y][x].active) {
+            
+            if(currRoom){
                 char symbol = '#';
-                switch (m_grid[y][x].type) {
+                switch(currRoom->GetType()){
                     case RoomType::START:    symbol = 'S'; break;
                     case RoomType::BOSS:     symbol = 'B'; break;
                     case RoomType::TREASURE: symbol = 'T'; break;
@@ -158,512 +750,13 @@ void Dungeon::PrintMapToConsole() {
                 }
                 canvas[centerY][centerX] = symbol;
             } else {
-                canvas[centerY][centerX] = '.'; // Faint grid background
+                canvas[centerY][centerX] = '.';
             }
         }
     }
-
-    // 4. Print the Buffer
-    for (const auto& line : canvas) {
+    
+    // Print
+    for(const auto& line : canvas){
         std::cout << line << "\n";
     }
-}
-
-void Dungeon::PlaceSpecialRoom(RoomType type) {
-    CalculateStepDistance();
-
-    std::vector<Point> candidates;
-
-    for(int y = 0; y < DUNGEON_SIZE; y++){
-        for(int x = 0; x < DUNGEON_SIZE; x++){
-            if(m_grid[y][x].active && m_grid[y][x].type == RoomType::NORMAL && m_grid[y][x].stepDistance >= 0){
-                candidates.push_back({x, y});
-            }
-        }
-    }
-
-    std::sort(candidates.begin(), candidates.end(),
-        [this](const Point& a, const Point& b){
-            return m_grid[a.y][a.x].stepDistance > m_grid[b.y][b.x].stepDistance;
-        });
-
-    // STRATEGY 2: Create new branch
-    for(const auto& candidate : candidates){
-        if(HasConflictingNeighbour(candidate)) continue;
-
-        std::vector<Point> emptyNeighbors = GetValidEmptyNeighbors(candidate);
-        for(const auto& spot : emptyNeighbors){
-            int newRoomNeighborCount = CountNeighbours(spot);
-            if(newRoomNeighborCount == 1 && !HasConflictingNeighbour(spot)){
-                m_grid[spot.y][spot.x].active = true;
-                m_grid[spot.y][spot.x].type = type;
-                m_grid[spot.y][spot.x].shape = RoomShape::Dim1x1;
-                m_grid[spot.y][spot.x].id = m_lastRoomID++;
-
-                ConnectRooms(spot, candidate);
-                return;
-            }
-        }
-    }
-
-    for(const auto& candidate : candidates){
-        if(m_grid[candidate.y][candidate.x].shape != RoomShape::Dim1x1) continue;
-        
-        if(CountNeighbours(candidate) == 1 && !HasConflictingNeighbour(candidate)){
-            m_grid[candidate.y][candidate.x].type = type;
-            return;
-        }
-    }
-
-    std::cout << "Warning: Could not place " << 
-        (type == RoomType::BOSS ? "BOSS" : 
-         type == RoomType::TREASURE ? "TREASURE" : "SHOP") 
-        << " room!" << std::endl;
-}
-
-void Dungeon::CalculateStepDistance(){
-    for(int y = 0; y < DUNGEON_SIZE; y++){
-        for(int x = 0; x < DUNGEON_SIZE; x++){
-            m_grid[y][x].stepDistance = -1;
-        }
-    }
-
-    Point start = {DUNGEON_SIZE / 2, DUNGEON_SIZE / 2};
-
-    std::queue<Point> q;
-
-    int startRoomID = m_grid[start.y][start.x].id;
-    for(int y = 0; y < DUNGEON_SIZE; y++){
-        for(int x = 0; x < DUNGEON_SIZE; x++){
-            if(m_grid[y][x].active && m_grid[y][x].id == startRoomID){
-                m_grid[y][x].stepDistance = 0;
-                q.push({x, y});
-            }
-        }
-    }
-
-    std::set<int> processedRooms;
-    processedRooms.insert(startRoomID);
-
-    while(!q.empty()){
-        Point current = q.front();
-        q.pop();
-
-        int dist = m_grid[current.y][current.x].stepDistance;
-        int currentID = m_grid[current.y][current.x].id;
-
-        struct {int dx, dy; bool RoomData::*door;} directions[4] = {
-            {0 , -1, &RoomData::doorTop},
-            {0 , 1, &RoomData::doorBottom},
-            {-1 , 0, &RoomData::doorLeft},
-            {1 , 0, &RoomData::doorRight}
-        };
-
-        for(const auto& dir : directions){
-            int nx = current.x + dir.dx;
-            int ny = current.y + dir.dy;
-
-            if(nx < 0 || nx >= DUNGEON_SIZE || ny < 0 || ny >= DUNGEON_SIZE) continue;
-            if(!m_grid[ny][nx].active) continue;
-
-            int neighborID = m_grid[ny][nx].id;
-            if(neighborID == currentID) continue;
-            if(processedRooms.find(neighborID) != processedRooms.end()) continue;
-
-            if(m_grid[current.y][current.x].*dir.door){
-                // Mark entire neighbor room with distance + 1
-                int newDist = dist + 1;
-                
-                for(int y = 0; y < DUNGEON_SIZE; y++){
-                    for(int x = 0; x < DUNGEON_SIZE; x++){
-                        if(m_grid[y][x].active && m_grid[y][x].id == neighborID){
-                            m_grid[y][x].stepDistance = newDist;
-                            q.push({x, y});
-                        }
-                    }
-                }
-                
-                processedRooms.insert(neighborID);
-            }
-        }
-    }
-}
-
-void Dungeon::UpdateNormalDoors() {
-    for(int y = 0; y < DUNGEON_SIZE; y++) {
-        for(int x = 0; x < DUNGEON_SIZE; x++) {
-            // IGNORE SPECIAL ROOMS! They are static.
-            if (m_grid[y][x].active && 
-               (m_grid[y][x].type == RoomType::NORMAL || m_grid[y][x].type == RoomType::START)) {
-                
-                // Only connect to other Normal/Start rooms automatically
-                // This prevents accidental connections to existing special rooms
-                auto IsConnectable = [&](int nx, int ny, bool isHorizontal) {
-                    if (!RoomExists(nx, ny)) return false;
-                    
-                    RoomData& current = m_grid[y][x];
-                    RoomData& neighbor = m_grid[ny][nx];
-
-                    if(current.id == neighbor.id) return true;
-
-                    if(current.shape == RoomShape::Dim1x2 && isHorizontal) return false;
-                    if(current.shape == RoomShape::Dim2x1 && !isHorizontal) return false;
-                    if(neighbor.shape == RoomShape::Dim2x1 && !isHorizontal) return false;
-                    if(neighbor.shape == RoomShape::Dim1x2 && isHorizontal) return false;
-
-                    return true;
-                };
-
-                m_grid[y][x].doorTop    = IsConnectable(x, y - 1, false);
-                m_grid[y][x].doorBottom = IsConnectable(x, y + 1, false);
-                m_grid[y][x].doorLeft   = IsConnectable(x - 1, y, true);
-                m_grid[y][x].doorRight  = IsConnectable(x + 1, y, true);
-            }
-        }
-    }  
-}
-
-bool Dungeon::HasConflictingNeighbour(Point p) {
-    auto isConflict = [this](int x, int y) {
-        if (!RoomExists(x, y)) return false;
-        RoomType t = m_grid[y][x].type;
-        return (t == RoomType::BOSS || t == RoomType::TREASURE || t == RoomType::SHOP);
-    };
-
-    return isConflict(p.x, p.y - 1) || isConflict(p.x, p.y + 1) ||
-        isConflict(p.x - 1, p.y) || isConflict(p.x + 1, p.y);
-}
-
-void Dungeon::ClearGrid(){
-    for(int y = 0; y < DUNGEON_SIZE; y++){
-        for(int x = 0; x < DUNGEON_SIZE; x++){
-            m_grid[y][x] = RoomData();
-        }
-    }
-}
-
-void Dungeon::GenerateMainPath(int maxRooms){
-    Point pos = {DUNGEON_SIZE / 2, DUNGEON_SIZE / 2};
-
-    m_lastRoomID = 1;
-    m_grid[pos.y][pos.x].id = m_lastRoomID++;
-    m_grid[pos.y][pos.x].active = true;
-    m_grid[pos.y][pos.x].type = RoomType::START;
-
-    int roomCount = 1;
-    std::vector<Point> frontier;
-    frontier.push_back(pos);
-
-    while(roomCount < maxRooms && !frontier.empty()){
-        int idx = std::rand() % frontier.size();
-        Point current = frontier[idx];
-
-        std::vector<Point> neighbors = GetValidEmptyNeighbors(current);
-
-        if(neighbors.empty()){
-            frontier.erase(frontier.begin() + idx);
-            continue;
-        }
-
-        Point newRoom = neighbors[std::rand() % neighbors.size()];
-        m_grid[newRoom.y][newRoom.x].active = true;
-        m_grid[newRoom.y][newRoom.x].type = RoomType::NORMAL;
-        m_grid[newRoom.y][newRoom.x].shape = RoomShape::Dim1x1;
-        m_grid[newRoom.y][newRoom.x].id = m_lastRoomID++;
-        roomCount++;
-
-        frontier.push_back(newRoom);
-
-        if(std::rand() % 100 < 30){
-            frontier.erase(frontier.begin() + idx);
-        }
-    }
-}
-
-std::vector<Dungeon::Point> Dungeon::GetValidEmptyNeighbors(Point p){
-    std::vector<Point> neighbors;
-
-    const Point directions[4] = {
-        {0, -1},
-        {0, 1},
-        {-1, 0},
-        {1, 0}
-    };
-
-    for(const auto& dir : directions){
-        Point neighbor = {p.x + dir.x, p.y + dir.y};
-
-        if(neighbor.x < 1 || neighbor.x >= DUNGEON_SIZE - 1 ||
-            neighbor.y < 1 || neighbor.y >= DUNGEON_SIZE - 1){
-            continue;
-        }
-
-        if(!m_grid[neighbor.y][neighbor.x].active){
-            neighbors.push_back(neighbor);
-        }
-    }
-
-    return neighbors;
-}
-
-RoomData Dungeon::GetRoom(int x, int y){
-    if(x < 0 || x >= DUNGEON_SIZE || y < 0 || y >= DUNGEON_SIZE) return RoomData();
-    return m_grid[y][x];
-}
-
-void Dungeon::ConnectRooms(Point a, Point b){
-    // A is Below B (A connects Top, B connects Bottom)
-    if (a.y > b.y) { m_grid[a.y][a.x].doorTop = true;    m_grid[b.y][b.x].doorBottom = true; }
-    // A is Above B
-    if (a.y < b.y) { m_grid[a.y][a.x].doorBottom = true; m_grid[b.y][b.x].doorTop = true; }
-    // A is Right of B
-    if (a.x > b.x) { m_grid[a.y][a.x].doorLeft = true;   m_grid[b.y][b.x].doorRight = true; }
-    // A is Left of B
-    if (a.x < b.x) { m_grid[a.y][a.x].doorRight = true;  m_grid[b.y][b.x].doorLeft = true; }
-}
-
-void Dungeon::GenerateComplexRooms(){
-    std::vector<Point> activeRooms;
-    for(int y = 0; y < DUNGEON_SIZE; y++){
-        for(int x = 0; x < DUNGEON_SIZE; x++){
-            if(m_grid[y][x].active && m_grid[y][x].type == RoomType::NORMAL){
-                activeRooms.push_back({x, y});
-            }
-        }
-    }
-
-    std::random_shuffle(activeRooms.begin(), activeRooms.end());
-
-    for(Point room : activeRooms){
-        if(m_grid[room.y][room.x].shape != RoomShape::Dim1x1) continue;
-
-        int roll = std::rand() % 100;
-
-
-        //10%
-        if(roll < 10){
-            if(TryCreateBigRoom(room.x, room.y)) continue;
-        }
-
-        //25%
-        if(roll < 25){
-            if(TryCreateLRoom(room.x, room.y)) continue;
-        }
-
-        //40%
-        if(roll < 40){
-            if(TryCreateSkinnyRoom(room.x, room.y)) continue;
-        }
-    }
-}
-
-bool Dungeon::IsFree(int x, int y){
-    return (x >= 0 && x < DUNGEON_SIZE && y >= 0 && y < DUNGEON_SIZE && !m_grid[y][x].active);
-}
-
-bool Dungeon::TryCreateBigRoom(int x, int y){
-    if(IsFree(x + 1, y) && IsFree(x, y + 1) && IsFree(x + 1, y + 1)){
-        int id = m_grid[y][x].id;
-
-        Point rooms[] = {{x, y}, {x + 1, y}, {x, y + 1}, {x + 1, y + 1}};
-        for(Point room : rooms){
-            m_grid[room.y][room.x].active = true;
-            m_grid[room.y][room.x].type = RoomType::NORMAL;
-            m_grid[room.y][room.x].id = id;
-            m_grid[room.y][room.x].shape = RoomShape::Dim2x2;
-        }
-        return true;
-    }
-    else if(IsFree(x - 1, y) && IsFree(x, y + 1) && IsFree(x - 1, y + 1)){
-        int id = m_grid[y][x].id;
-
-        Point rooms[] = {{x, y}, {x - 1, y}, {x, y + 1}, {x - 1, y + 1}};
-        for(Point room : rooms){
-            m_grid[room.y][room.x].active = true;
-            m_grid[room.y][room.x].type = RoomType::NORMAL;
-            m_grid[room.y][room.x].id = id;
-            m_grid[room.y][room.x].shape = RoomShape::Dim2x2;
-        }
-        return true;
-    }
-    else if(IsFree(x - 1, y) && IsFree(x, y - 1) && IsFree(x - 1, y - 1)){
-        int id = m_grid[y][x].id;
-
-        Point rooms[] = {{x, y}, {x - 1, y}, {x, y - 1}, {x - 1, y - 1}};
-        for(Point room : rooms){
-            m_grid[room.y][room.x].active = true;
-            m_grid[room.y][room.x].type = RoomType::NORMAL;
-            m_grid[room.y][room.x].id = id;
-            m_grid[room.y][room.x].shape = RoomShape::Dim2x2;
-        }
-        return true;
-    }
-    else if(IsFree(x + 1, y) && IsFree(x, y - 1) && IsFree(x + 1, y - 1)){
-        int id = m_grid[y][x].id;
-
-        Point rooms[] = {{x, y}, {x + 1, y}, {x, y - 1}, {x + 1, y - 1}};
-        for(Point room : rooms){
-            m_grid[room.y][room.x].active = true;
-            m_grid[room.y][room.x].type = RoomType::NORMAL;
-            m_grid[room.y][room.x].id = id;
-            m_grid[room.y][room.x].shape = RoomShape::Dim2x2;
-        }
-        return true;
-    }
-    return false;
-}
-
-bool Dungeon::TryCreateSkinnyRoom(int x, int y) {
-    // Try Horizontal (2x1) -> Forbidden connections are Top (y-1) and Bottom (y+1)
-    // We only create this if we DON'T need to connect Up or Down from the main cell or the expansion cell.
-    if(std::rand() % 2 == 0) {
-        bool needsVerticalConnection = RoomExists(x, y - 1) || RoomExists(x, y + 1);
-        
-        // Expand Right
-        if(IsFree(x + 1, y)) {
-            bool expansionNeedsVertical = RoomExists(x + 1, y - 1) || RoomExists(x + 1, y + 1);
-            if(needsVerticalConnection || expansionNeedsVertical) return false; // ABORT to save the path
-
-            int id = m_grid[y][x].id;
-            m_grid[y][x].shape = RoomShape::Dim2x1;
-            
-            m_grid[y][x + 1].active = true;
-            m_grid[y][x + 1].type = RoomType::NORMAL;
-            m_grid[y][x + 1].id = id;
-            m_grid[y][x + 1].shape = RoomShape::Dim2x1;
-            return true;
-        }
-        // Expand Left
-        else if(IsFree(x - 1, y)) {
-            bool expansionNeedsVertical = RoomExists(x - 1, y - 1) || RoomExists(x - 1, y + 1);
-            if(needsVerticalConnection || expansionNeedsVertical) return false; 
-
-            int id = m_grid[y][x].id;
-            m_grid[y][x].shape = RoomShape::Dim2x1;
-            
-            m_grid[y][x - 1].active = true;
-            m_grid[y][x - 1].type = RoomType::NORMAL;
-            m_grid[y][x - 1].id = id;
-            m_grid[y][x - 1].shape = RoomShape::Dim2x1;
-            return true;
-        }
-    }
-    // Try Vertical (1x2) -> Forbidden connections are Left (x-1) and Right (x+1)
-    else {
-        bool needsHorizontalConnection = RoomExists(x - 1, y) || RoomExists(x + 1, y);
-
-        // Expand Down
-        if(IsFree(x, y + 1)) {
-            bool expansionNeedsHorizontal = RoomExists(x - 1, y + 1) || RoomExists(x + 1, y + 1);
-            if(needsHorizontalConnection || expansionNeedsHorizontal) return false;
-
-            int id = m_grid[y][x].id;
-            m_grid[y][x].shape = RoomShape::Dim1x2;
-            
-            m_grid[y + 1][x].active = true;
-            m_grid[y + 1][x].type = RoomType::NORMAL;
-            m_grid[y + 1][x].id = id;
-            m_grid[y + 1][x].shape = RoomShape::Dim1x2;
-            return true;
-        }
-        // Expand Up
-        if(IsFree(x, y - 1)) {
-            bool expansionNeedsHorizontal = RoomExists(x - 1, y - 1) || RoomExists(x + 1, y - 1);
-            if(needsHorizontalConnection || expansionNeedsHorizontal) return false;
-
-            int id = m_grid[y][x].id;
-            m_grid[y][x].shape = RoomShape::Dim1x2;
-            
-            m_grid[y - 1][x].active = true;
-            m_grid[y - 1][x].type = RoomType::NORMAL;
-            m_grid[y - 1][x].id = id;
-            m_grid[y - 1][x].shape = RoomShape::Dim1x2;
-            return true;
-        }
-    }
-    return false;
-}
-
-bool Dungeon::TryCreateLRoom(int x, int y) {
-    if(IsFree(x + 1, y) && IsFree(x, y + 1) && IsFree(x + 1, y + 1)) {
-        int skip = std::rand() % 3; // 0=Right, 1=Bottom, 2=Diagonal
-        
-        int id = m_grid[y][x].id;
-        m_grid[y][x].shape = RoomShape::LShape;
-
-        if(skip != 0) { // Fill Right
-            m_grid[y][x+1] = m_grid[y][x]; 
-            m_grid[y][x+1].id = id;
-        }
-        if(skip != 1) { // Fill Bottom
-            m_grid[y+1][x] = m_grid[y][x]; 
-            m_grid[y+1][x].id = id;
-        }
-        if(skip != 2) { // Fill Diagonal
-            m_grid[y+1][x+1] = m_grid[y][x]; 
-            m_grid[y+1][x+1].id = id;
-        }
-        return true;
-    }
-    else if(IsFree(x - 1, y) && IsFree(x, y + 1) && IsFree(x - 1, y + 1)) {
-        int skip = std::rand() % 3; // 0=Right, 1=Bottom, 2=Diagonal
-        
-        int id = m_grid[y][x].id;
-        m_grid[y][x].shape = RoomShape::LShape;
-
-        if(skip != 0) { // Fill Right
-            m_grid[y][x-1] = m_grid[y][x]; 
-            m_grid[y][x-1].id = id;
-        }
-        if(skip != 1) { // Fill Bottom
-            m_grid[y+1][x] = m_grid[y][x]; 
-            m_grid[y+1][x].id = id;
-        }
-        if(skip != 2) { // Fill Diagonal
-            m_grid[y+1][x-1] = m_grid[y][x]; 
-            m_grid[y+1][x-1].id = id;
-        }
-        return true;
-    }
-    else if(IsFree(x - 1, y) && IsFree(x, y - 1) && IsFree(x - 1, y - 1)) {
-        int skip = std::rand() % 3; // 0=Right, 1=Bottom, 2=Diagonal
-        
-        int id = m_grid[y][x].id;
-        m_grid[y][x].shape = RoomShape::LShape;
-
-        if(skip != 0) { // Fill Right
-            m_grid[y][x-1] = m_grid[y][x]; 
-            m_grid[y][x-1].id = id;
-        }
-        if(skip != 1) { // Fill Bottom
-            m_grid[y-1][x] = m_grid[y][x]; 
-            m_grid[y-1][x].id = id;
-        }
-        if(skip != 2) { // Fill Diagonal
-            m_grid[y-1][x-1] = m_grid[y][x]; 
-            m_grid[y-1][x-1].id = id;
-        }
-        return true;
-    }
-    else if(IsFree(x + 1, y) && IsFree(x, y - 1) && IsFree(x + 1, y - 1)) {
-        int skip = std::rand() % 3; // 0=Right, 1=Bottom, 2=Diagonal
-        
-        int id = m_grid[y][x].id;
-        m_grid[y][x].shape = RoomShape::LShape;
-
-        if(skip != 0) { // Fill Right
-            m_grid[y][x+1] = m_grid[y][x]; 
-            m_grid[y][x+1].id = id;
-        }
-        if(skip != 1) { // Fill Bottom
-            m_grid[y-1][x] = m_grid[y][x]; 
-            m_grid[y-1][x].id = id;
-        }
-        if(skip != 2) { // Fill Diagonal
-            m_grid[y-1][x+1] = m_grid[y][x]; 
-            m_grid[y-1][x+1].id = id;
-        }
-        return true;
-    }
-    return false;
 }
