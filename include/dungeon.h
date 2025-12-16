@@ -12,7 +12,9 @@ enum class RoomType{
     START,
     BOSS,
     TREASURE,
-    SHOP
+    SHOP,
+    SECRET,
+    SUPER_SECRET
 };
 
 enum class RoomShape{
@@ -76,6 +78,8 @@ private:
     void AutoConnectNormalRooms(); // Auto-connect adjacent normal/start rooms
     void PlaceSpecialRoom(RoomType type);
     void CalculateStepDistances();
+    void PlaceSecretRoom();
+    void PlaceSuperSecretRoom();
     
     // Room shape creation
     bool TryCreateBigRoom(Room* room);
