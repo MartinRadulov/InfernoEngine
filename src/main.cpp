@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <ctime>
+#include <memory>
 //#include <SDL2/SDL_ttf.h> // (Later, for text)
 #include "../include/level.h"
 #include "../include/player.h"
@@ -40,12 +41,12 @@ int main(int argc, char* argv[]) {
     Level currentLevel;
     Player player(80.0f, 80.0f);
     std::vector<Projectile> bullets;
-    std::vector<Enemy*> enemies;
+    std::vector<std::unique_ptr<Enemy>> enemies;
 
     //TEST!!!!
     //enemies.push_back(new Zombie(300.0f, 300.0f));
-    enemies.push_back(new Fly(100.0f, 100.0f));
-    enemies.push_back(new Stalker(300.0f, 350.0f));
+    enemies.push_back(std::make_unique<Fly>(100.0f, 100.0f));
+    enemies.push_back(std::make_unique<Stalker>(300.0f, 350.0f));
 
     bool debugMode = false;
 
