@@ -767,7 +767,10 @@ void Dungeon::PrintMapToConsole(){
 
 
 void Dungeon::PlaceSecretRoom(){
-    // Normal Secret Room: Maximize neighbors, avoid Boss and other Secrets
+    // Normal Secret Room: Maximize neighbors
+    // Can connect to: NORMAL, START, SHOP, TREASURE
+    // Cannot connect to: BOSS, SECRET, SUPER_SECRET
+    // CANNOT be physically adjacent to rooms it can't connect to (no walls between neighbors)
     
     struct Candidate {
         Point spot;
@@ -783,7 +786,8 @@ void Dungeon::PlaceSecretRoom(){
             if(!IsCellFree(x, y)) continue;
             
             Point spot = {x, y};
-            std::vector<Room*> neighbors;
+            std::vector<Room*> validNeighbors;
+            int totalNeighborCount = 0;
             
             // Check all 4 directions for potential connections
             const Point dirs[4] = {{0,-1}, {0,1}, {-1,0}, {1,0}};
@@ -792,10 +796,15 @@ void Dungeon::PlaceSecretRoom(){
                 Room* neighbor = GetRoomAt(x + dir.x, y + dir.y);
                 if(!neighbor) continue;
                 
-                // Can't connect to Boss or other Secrets
+                totalNeighborCount++;
+                
+                // Can connect to NORMAL, START, SHOP, TREASURE
+                // Cannot connect to BOSS, SECRET, SUPER_SECRET
                 if(neighbor->GetType() == RoomType::BOSS || 
                    neighbor->GetType() == RoomType::SECRET ||
-                   neighbor->GetType() == RoomType::SUPER_SECRET) continue;
+                   neighbor->GetType() == RoomType::SUPER_SECRET) {
+                    continue; // Invalid neighbor - skip but count total
+                }
                 
                 // Check shape compatibility
                 bool isVertical = (dir.x == 0);
@@ -804,12 +813,14 @@ void Dungeon::PlaceSecretRoom(){
                 if(neighbor->GetShape() == RoomShape::Dim2x1 && isVertical) continue;
                 if(neighbor->GetShape() == RoomShape::Dim1x2 && isHorizontal) continue;
                 
-                neighbors.push_back(neighbor);
+                validNeighbors.push_back(neighbor);
             }
             
-            // Need at least 1 neighbor
-            if(!neighbors.empty()){
-                candidates.push_back({spot, neighbors, static_cast<int>(neighbors.size())});
+            // CRITICAL: ALL neighbors must be valid (no Boss/Secret nearby even without doors)
+            // totalNeighborCount == validNeighbors.size() means no invalid neighbors
+            if(!validNeighbors.empty() && 
+               totalNeighborCount == static_cast<int>(validNeighbors.size())){
+                candidates.push_back({spot, validNeighbors, static_cast<int>(validNeighbors.size())});
             }
         }
     }
@@ -845,12 +856,11 @@ void Dungeon::PlaceSecretRoom(){
     for(Room* neighbor : chosen.neighbors){
         ConnectRooms(secretRoom, neighbor);
     }
-    
-    std::cout << "Placed SECRET room with " << chosen.neighborCount << " neighbors" << std::endl;
 }
 
 void Dungeon::PlaceSuperSecretRoom(){
     // Super Secret Room: Dead-end, furthest from start, ONLY connects to NORMAL rooms
+    // CANNOT be physically adjacent to ANY non-normal rooms (even without doors)
     
     CalculateStepDistances(); // Ensure distances are current
     
@@ -869,7 +879,8 @@ void Dungeon::PlaceSuperSecretRoom(){
             
             Point spot = {x, y};
             Room* singleNeighbor = nullptr;
-            int validNeighborCount = 0;
+            int totalNeighborCount = 0;
+            int normalNeighborCount = 0;
             
             // Check all 4 directions
             const Point dirs[4] = {{0,-1}, {0,1}, {-1,0}, {1,0}};
@@ -878,24 +889,23 @@ void Dungeon::PlaceSuperSecretRoom(){
                 Room* neighbor = GetRoomAt(x + dir.x, y + dir.y);
                 if(!neighbor) continue;
                 
-                // ONLY allow NORMAL rooms - reject everything else
-                if(neighbor->GetType() != RoomType::NORMAL) {
-                    continue;
+                totalNeighborCount++;
+                
+                // Check if it's a NORMAL room
+                if(neighbor->GetType() == RoomType::NORMAL){
+                    // Check shape compatibility
+                    bool isVertical = (dir.x == 0);
+                    bool isHorizontal = (dir.y == 0);
+                    
+                    if(neighbor->GetShape() == RoomShape::Dim2x1 && isVertical) continue;
+                    if(neighbor->GetShape() == RoomShape::Dim1x2 && isHorizontal) continue;
+                    
+                    normalNeighborCount++;
+                    singleNeighbor = neighbor;
                 }
-                
-                // Check shape compatibility
-                bool isVertical = (dir.x == 0);
-                bool isHorizontal = (dir.y == 0);
-                
-                if(neighbor->GetShape() == RoomShape::Dim2x1 && isVertical) continue;
-                if(neighbor->GetShape() == RoomShape::Dim1x2 && isHorizontal) continue;
-                
-                validNeighborCount++;
-                singleNeighbor = neighbor;
             }
-            
-            // Must have EXACTLY 1 valid neighbor
-            if(validNeighborCount == 1 && singleNeighbor){
+
+            if(totalNeighborCount == 1 && normalNeighborCount == 1 && singleNeighbor){
                 candidates.push_back({spot, singleNeighbor, singleNeighbor->GetStepDistance()});
             }
         }
@@ -928,39 +938,4 @@ void Dungeon::PlaceSuperSecretRoom(){
     // Create super secret room
     Room* superSecretRoom = CreateRoom(RoomType::SUPER_SECRET, RoomShape::Dim1x1, {chosen.spot});
     ConnectRooms(superSecretRoom, chosen.neighbor);
-    
-    // DEBUG: Verify connections
-    std::cout << "Placed SUPER_SECRET at (" << chosen.spot.x << "," << chosen.spot.y 
-              << ") distance " << maxDistance << std::endl;
-    std::cout << "Connected to room type: ";
-    switch(chosen.neighbor->GetType()){
-        case RoomType::NORMAL: std::cout << "NORMAL"; break;
-        case RoomType::START: std::cout << "START"; break;
-        case RoomType::BOSS: std::cout << "BOSS (ERROR!)"; break;
-        case RoomType::SHOP: std::cout << "SHOP (ERROR!)"; break;
-        case RoomType::TREASURE: std::cout << "TREASURE (ERROR!)"; break;
-        case RoomType::SECRET: std::cout << "SECRET (ERROR!)"; break;
-        default: std::cout << "UNKNOWN"; break;
-    }
-    std::cout << std::endl;
-    
-    // Check ALL connections of the super secret room
-    std::cout << "Super secret has " << superSecretRoom->GetConnectionCount() << " connection(s)" << std::endl;
-    for(int connID : superSecretRoom->GetConnectedRoomIDs()){
-        Room* conn = GetRoomByID(connID);
-        if(conn){
-            std::cout << "  - Connected to room ID " << connID << " type: ";
-            switch(conn->GetType()){
-                case RoomType::NORMAL: std::cout << "NORMAL"; break;
-                case RoomType::START: std::cout << "START"; break;
-                case RoomType::BOSS: std::cout << "BOSS"; break;
-                case RoomType::SHOP: std::cout << "SHOP"; break;
-                case RoomType::TREASURE: std::cout << "TREASURE"; break;
-                case RoomType::SECRET: std::cout << "SECRET"; break;
-                case RoomType::SUPER_SECRET: std::cout << "SUPER_SECRET"; break;
-                default: std::cout << "UNKNOWN"; break;
-            }
-            std::cout << std::endl;
-        }
-    }
 }
