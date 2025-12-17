@@ -15,10 +15,19 @@ void Dungeon::GenerateDungeon(int maxRooms){
     ClearAll();
     GenerateMainPath(maxRooms);
     GenerateComplexRooms();
-    AutoConnectNormalRooms(); // NEW: Auto-connect adjacent normal rooms
+    AutoConnectNormalRooms();
     PlaceSpecialRoom(RoomType::BOSS);
     PlaceSpecialRoom(RoomType::SHOP);
     PlaceSpecialRoom(RoomType::TREASURE);
+    PlaceConditionalSpecialRoom(RoomType::CURSE, 100);
+    PlaceConditionalSpecialRoom(RoomType::SACRIFICIAL, 60);
+    PlaceConditionalSpecialRoom(RoomType::CHALLENGE, 60);
+    PlaceConditionalSpecialRoom(RoomType::BOSS_CHALLENGE, 50);
+    PlaceConditionalSpecialRoom(RoomType::LIBRARY, 40);
+    PlaceConditionalSpecialRoom(RoomType::ARCADE, 40);
+    PlaceConditionalSpecialRoom(RoomType::KEY, 30);
+    PlaceConditionalSpecialRoom(RoomType::DICE, 20);
+    PlaceConditionalSpecialRoom(RoomType::BEDROOM, 20);
     PlaceSecretRoom();
     PlaceSuperSecretRoom();
     CalculateStepDistances();
@@ -667,7 +676,6 @@ void Dungeon::PrintMapToConsole(){
     
     std::vector<std::string> canvas(canvasH, std::string(canvasW, ' '));
     
-    // Draw map
     for(int y = 0; y < DUNGEON_SIZE; y++){
         for(int x = 0; x < DUNGEON_SIZE; x++){
             Room* room = GetRoomAt(x, y);
@@ -677,13 +685,11 @@ void Dungeon::PrintMapToConsole(){
                 int px = x * CELL_W;
                 int id = room->GetID();
                 
-                // Helper to check if neighbor is same room
                 auto SameRoom = [&](int ny, int nx){
                     Room* neighbor = GetRoomAt(nx, ny);
                     return neighbor && neighbor->GetID() == id;
                 };
                 
-                // Draw corners
                 if(!(SameRoom(y, x-1) && SameRoom(y-1, x) && SameRoom(y-1, x-1)))
                     canvas[py][px] = '+';
                 
@@ -697,7 +703,6 @@ void Dungeon::PrintMapToConsole(){
                     canvas[py + CELL_H][px + CELL_W] = '+';
             }
             
-            // Draw top walls/doors
             int topY = y * CELL_H;
             int topX = x * CELL_W + 1;
             
@@ -717,7 +722,6 @@ void Dungeon::PrintMapToConsole(){
                 }
             }
             
-            // Draw left walls/doors
             int midY = y * CELL_H + 1;
             int leftX = x * CELL_W;
             
@@ -736,21 +740,29 @@ void Dungeon::PrintMapToConsole(){
                 }
             }
             
-            // Draw center symbol
             int centerY = y * CELL_H + 1;
             int centerX = x * CELL_W + 2;
             
             if(currRoom){
                 char symbol = '#';
                 switch(currRoom->GetType()){
-                    case RoomType::START:        symbol = 'S'; break;
-                    case RoomType::BOSS:         symbol = 'B'; break;
-                    case RoomType::TREASURE:     symbol = 'T'; break;
-                    case RoomType::SHOP:         symbol = '$'; break;
-                    case RoomType::SECRET:       symbol = '?'; break;
-                    case RoomType::SUPER_SECRET: symbol = '!'; break;
-                    case RoomType::NORMAL:       symbol = '#'; break;
-                    default:                     symbol = '?'; break;
+                    case RoomType::START:         symbol = 'S'; break;
+                    case RoomType::BOSS:          symbol = 'B'; break;
+                    case RoomType::TREASURE:      symbol = 'T'; break;
+                    case RoomType::SHOP:          symbol = '$'; break;
+                    case RoomType::SECRET:        symbol = '?'; break;
+                    case RoomType::SUPER_SECRET:  symbol = '!'; break;
+                    case RoomType::CURSE:         symbol = 'C'; break;
+                    case RoomType::SACRIFICIAL:   symbol = 'A'; break;
+                    case RoomType::CHALLENGE:     symbol = 'H'; break;
+                    case RoomType::BOSS_CHALLENGE:symbol = 'b'; break;
+                    case RoomType::LIBRARY:       symbol = 'L'; break;
+                    case RoomType::ARCADE:        symbol = '@'; break;
+                    case RoomType::KEY:           symbol = 'K'; break;
+                    case RoomType::DICE:          symbol = 'D'; break;
+                    case RoomType::BEDROOM:       symbol = 'Z'; break;
+                    case RoomType::NORMAL:        symbol = '#'; break;
+                    default:                      symbol = '?'; break;
                 }
                 canvas[centerY][centerX] = symbol;
             } else {
@@ -759,10 +771,16 @@ void Dungeon::PrintMapToConsole(){
         }
     }
     
-    // Print
     for(const auto& line : canvas){
         std::cout << line << "\n";
     }
+    
+    // Print legend
+    std::cout << "\nLegend:\n";
+    std::cout << "S = Start       B = Boss        T = Treasure    $ = Shop\n";
+    std::cout << "? = Secret      ! = SuperSecret C = Curse       A = Sacrificial\n";
+    std::cout << "H = Challenge   b = BossChall   L = Library     @ = Arcade\n";
+    std::cout << "K = Key         D = Dice        Z = Bedroom     # = Normal\n";
 }
 
 
@@ -938,4 +956,100 @@ void Dungeon::PlaceSuperSecretRoom(){
     // Create super secret room
     Room* superSecretRoom = CreateRoom(RoomType::SUPER_SECRET, RoomShape::Dim1x1, {chosen.spot});
     ConnectRooms(superSecretRoom, chosen.neighbor);
+}
+
+void Dungeon::PlaceConditionalSpecialRoom(RoomType type, int createChancePercent){
+    // STRATEGY 1: Look for existing dead-end NORMAL room (1x1, exactly 1 connection)
+    std::vector<Room*> deadEndCandidates;
+    
+    for(auto& [id, room] : m_rooms){
+        if(room.GetType() != RoomType::NORMAL) continue;
+        if(room.GetShape() != RoomShape::Dim1x1) continue;
+        if(!room.IsDeadEnd()) continue;
+        
+        Point cell = room.GetFirstCell();
+        if(HasConflictingNeighbour(cell)) continue;
+        
+        deadEndCandidates.push_back(&room);
+    }
+    
+    // If dead-end found, convert it
+    if(!deadEndCandidates.empty()){
+        Room* chosen = deadEndCandidates[std::rand() % deadEndCandidates.size()];
+        chosen->SetType(type);
+        return;
+    }
+    
+    // STRATEGY 2: No dead-end found, roll chance to create new room
+    int roll = std::rand() % 100;
+    if(roll >= createChancePercent){
+        return; // Failed roll, don't place
+    }
+    
+    // Try to create new room (same logic as PlaceSpecialRoom)
+    CalculateStepDistances();
+    
+    std::vector<Room*> candidates;
+    for(auto& [id, room] : m_rooms){
+        if(room.GetType() == RoomType::NORMAL && room.GetStepDistance() >= 0){
+            candidates.push_back(&room);
+        }
+    }
+    
+    // Try to branch off far rooms first
+    for(Room* candidate : candidates){
+        if(HasConflictingNeighbour(candidate->GetFirstCell())) continue;
+        
+        for(const Point& cell : candidate->GetCells()){
+            std::vector<Point> emptyNeighbors = GetValidEmptyNeighbors(cell);
+            
+            for(const auto& spot : emptyNeighbors){
+                int neighborCount = CountOccupiedNeighbours(spot);
+                if(neighborCount != 1) continue;
+                
+                if(HasConflictingNeighbour(spot)) continue;
+                
+                int dx = spot.x - cell.x;
+                int dy = spot.y - cell.y;
+                bool isVertical = (dx == 0);
+                bool isHorizontal = (dy == 0);
+                
+                if(candidate->GetShape() == RoomShape::Dim2x1 && isVertical) continue;
+                if(candidate->GetShape() == RoomShape::Dim1x2 && isHorizontal) continue;
+                
+                Room* newRoom = CreateRoom(type, RoomShape::Dim1x1, {spot});
+                ConnectRooms(candidate, newRoom);
+                return;
+            }
+        }
+    }
+    
+    // Try all normal rooms
+    for(auto& [id, room] : m_rooms){
+        if(room.GetType() != RoomType::NORMAL) continue;
+        
+        for(const Point& cell : room.GetCells()){
+            std::vector<Point> emptyNeighbors = GetValidEmptyNeighbors(cell);
+            
+            for(const auto& spot : emptyNeighbors){
+                int neighborCount = CountOccupiedNeighbours(spot);
+                if(neighborCount != 1) continue;
+                if(HasConflictingNeighbour(spot)) continue;
+                
+                int dx = spot.x - cell.x;
+                int dy = spot.y - cell.y;
+                bool isVertical = (dx == 0);
+                bool isHorizontal = (dy == 0);
+                
+                if(room.GetShape() == RoomShape::Dim2x1 && isVertical) continue;
+                if(room.GetShape() == RoomShape::Dim1x2 && isHorizontal) continue;
+                
+                Room* newRoom = CreateRoom(type, RoomShape::Dim1x1, {spot});
+                ConnectRooms(&room, newRoom);
+                return;
+            }
+        }
+    }
+    
+    // Could not place (dungeon too dense or bad luck)
 }

@@ -83,5 +83,14 @@ bool Room::IsConnectedTo(int roomID) const {
 bool Room::IsSpecialRoom() const {
     return m_type == RoomType::BOSS || 
            m_type == RoomType::TREASURE || 
-           m_type == RoomType::SHOP;
+           m_type == RoomType::SHOP ||
+           m_type == RoomType::CURSE ||
+           m_type == RoomType::SACRIFICIAL ||
+           m_type == RoomType::CHALLENGE ||
+           m_type == RoomType::BOSS_CHALLENGE ||
+           m_type == RoomType::LIBRARY ||
+           m_type == RoomType::ARCADE ||
+           m_type == RoomType::KEY ||
+           m_type == RoomType::DICE ||
+           m_type == RoomType::BEDROOM;
 }

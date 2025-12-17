@@ -14,7 +14,16 @@ enum class RoomType{
     TREASURE,
     SHOP,
     SECRET,
-    SUPER_SECRET
+    SUPER_SECRET,
+    CURSE,
+    SACRIFICIAL,
+    CHALLENGE,
+    BOSS_CHALLENGE,
+    LIBRARY,
+    ARCADE,
+    KEY,
+    DICE,
+    BEDROOM
 };
 
 enum class RoomShape{
@@ -80,6 +89,7 @@ private:
     void CalculateStepDistances();
     void PlaceSecretRoom();
     void PlaceSuperSecretRoom();
+    void PlaceConditionalSpecialRoom(RoomType type, int createChancePercent);
     
     // Room shape creation
     bool TryCreateBigRoom(Room* room);
