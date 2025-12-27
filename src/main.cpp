@@ -133,22 +133,6 @@ int main(int argc, char* argv[]) {
             }
     }
 
-    //Clean up
-    // Remove inactive bullets using erase-remove idiom
-    bullets.erase(
-        std::remove_if(bullets.begin(), bullets.end(),
-            [](const Projectile& b) { return !b.GetIsActive(); }),
-        bullets.end()
-    );
-    // Remove dead enemies using erase-remove idiom
-    // Note: IsDead() has a bug (returns m_isActive instead of !m_isActive)
-    // So we remove when IsDead() returns false (which means actually dead)
-    enemies.erase(
-        std::remove_if(enemies.begin(), enemies.end(),
-            [](const std::unique_ptr<Enemy>& e) { return !e->IsDead(); }),
-        enemies.end()
-    );
-
     //Rendering part
     //---------------------------------------------------------------
     SDL_SetRenderDrawColor(renderer, 20, 20, 20, 255);
@@ -242,6 +226,20 @@ int main(int argc, char* argv[]) {
     }
 
     SDL_RenderPresent(renderer);
+
+    //Clean up (AFTER rendering!)
+    // Remove inactive bullets using erase-remove idiom
+    bullets.erase(
+        std::remove_if(bullets.begin(), bullets.end(),
+            [](const Projectile& b) { return !b.GetIsActive(); }),
+        bullets.end()
+    );
+    // Remove dead enemies using erase-remove idiom
+    enemies.erase(
+        std::remove_if(enemies.begin(), enemies.end(),
+            [](const std::unique_ptr<Enemy>& e) { return e->IsDead(); }),
+        enemies.end()
+    );
     }
 
     IMG_Quit();

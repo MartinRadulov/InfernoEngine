@@ -17,6 +17,10 @@ const int L_ENEMY = 128;
 const int SPRITE_SHEET_SIZE = 256;
 const int SWORD_LIFE = 10;
 const int SWORD_SIZE = 48;
+// Sword spawn distances - different for horizontal/vertical due to asymmetric player collider (32w x 48h)
+const int SWORD_SPAWN_DISTANCE_HORIZONTAL = 32;  // For left/right attacks
+const int SWORD_SPAWN_DISTANCE_VERTICAL = 40;    // For up/down attacks (32 + 8 for taller collider)
+const int ARROW_SPAWN_DISTANCE = 20;  // Distance from player collider center to arrow center
 
 
 inline int PixelToGrid(float pixelCoord) {

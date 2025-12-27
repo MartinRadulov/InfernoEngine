@@ -1,5 +1,6 @@
 #include "../include/projectile.h"
 #include "../include/dungeon.h"
+#include "../include/dungeon_constants.h"
 
 Projectile::Projectile(float x, float y, float velX, float velY)
     : m_collider(S_ENEMY, S_ENEMY,0 , 0){
@@ -56,8 +57,22 @@ void Projectile::Render(std::vector<RenderObject>& renderList, int camOffsetX, i
 }
 
 bool Projectile::isOffScreen(){
-    //fix later with actual constraints
-    return (m_x < 0 || m_y > SCREEN_HEIGHT || m_y < 0 || m_x > SCREEN_WIDTH);
+    // Calculate which room this projectile is in (world coords -> grid coords)
+    int roomGridX = static_cast<int>(m_x / ROOM_PIXEL_WIDTH);
+    int roomGridY = static_cast<int>(m_y / ROOM_PIXEL_HEIGHT);
+
+    // Calculate room bounds in world coordinates
+    int roomLeftEdge = roomGridX * ROOM_PIXEL_WIDTH;
+    int roomRightEdge = (roomGridX + 1) * ROOM_PIXEL_WIDTH;
+    int roomTopEdge = roomGridY * ROOM_PIXEL_HEIGHT;
+    int roomBottomEdge = (roomGridY + 1) * ROOM_PIXEL_HEIGHT;
+
+    // Add margin so projectiles don't despawn exactly at room edge
+    // This allows them to travel through doors before despawning
+    const int MARGIN = 10;  // Generous margin beyond room bounds
+
+    return (m_x < roomLeftEdge - MARGIN || m_x > roomRightEdge + MARGIN ||
+            m_y < roomTopEdge - MARGIN || m_y > roomBottomEdge + MARGIN);
 }
 
 bool Projectile::CheckCollision(float newX, float newY, Level& level){

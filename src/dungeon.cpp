@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <algorithm>
+#include <random>
 
 Dungeon::Dungeon(){
     static bool seeded = false;
@@ -248,8 +249,11 @@ void Dungeon::GenerateComplexRooms(){
             normalRooms.push_back(&room);
         }
     }
-    
-    std::random_shuffle(normalRooms.begin(), normalRooms.end());
+
+    // Use modern std::shuffle instead of deprecated random_shuffle
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    std::shuffle(normalRooms.begin(), normalRooms.end(), gen);
     
     for(Room* room : normalRooms){
         if(room->GetShape() != RoomShape::Dim1x1) continue;

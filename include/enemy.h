@@ -34,7 +34,7 @@ public:
 
     void TakeDamage(float dmgNum);
 
-    bool IsDead() const {return m_isActive;} 
+    bool IsDead() const {return !m_isActive;} 
 
     float GetX() const {return m_x;}
     float GetY() const {return m_y;}
