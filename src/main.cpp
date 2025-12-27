@@ -24,6 +24,8 @@
 #include <SDL2/SDL.h>
 #endif
 
+
+
 int main(int argc, char* argv[]) {
     //Initialize SDL
     SDL_Window* window = nullptr;
