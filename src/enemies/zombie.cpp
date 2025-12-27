@@ -7,7 +7,7 @@ Zombie::Zombie(float x, float y) : Enemy(x, y, M_ENEMY, M_ENEMY){
     m_damage = 15.0f;
 }
 
-void Zombie::Update(Level& level, float playerX, float playerY){
+void Zombie::Update(const Dungeon& dungeon, float playerX, float playerY){
     float velX = 0;
     float velY = 0;
 
@@ -16,5 +16,5 @@ void Zombie::Update(Level& level, float playerX, float playerY){
     if(playerY > m_y) velY = m_speed;
     if(playerY < m_y) velY = -m_speed;
 
-    MoveWithCollision(velX, velY, level);
+    MoveWithCollision(velX, velY, dungeon);
 }

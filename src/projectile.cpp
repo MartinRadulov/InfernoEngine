@@ -1,4 +1,5 @@
 #include "../include/projectile.h"
+#include "../include/dungeon.h"
 
 Projectile::Projectile(float x, float y, float velX, float velY)
     : m_collider(S_ENEMY, S_ENEMY,0 , 0){
@@ -9,7 +10,7 @@ Projectile::Projectile(float x, float y, float velX, float velY)
     m_velY = velY * m_speed;
 }
 
-void Projectile::Update(Level& level, float ownerX, float ownerY){
+void Projectile::Update(const Dungeon& dungeon, float ownerX, float ownerY){
     if(m_isAttached){
         m_x = ownerX + m_attachedOffX;
         m_y = ownerY + m_attachedOffY;
@@ -31,7 +32,7 @@ void Projectile::Update(Level& level, float ownerX, float ownerY){
     m_collider.SetPosition(m_x, m_y);
 
     // Wall Collision Check
-    if (m_collider.CheckMapCollision(level)) {
+    if (m_collider.CheckMapCollision(dungeon)) {
         if(m_destroyOnImpact){
             m_isActive = false;
         }
@@ -44,11 +45,11 @@ void Projectile::Update(Level& level, float ownerX, float ownerY){
     }
 }
 
-void Projectile::Render(std::vector<RenderObject>& renderList){
+void Projectile::Render(std::vector<RenderObject>& renderList, int camOffsetX, int camOffsetY){
     RenderObject bObj;
     bObj.textureID = m_textureID; // Using rock texture for bullets per your code
     bObj.srcRect = {0, 0, SPRITE_SHEET_SIZE, SPRITE_SHEET_SIZE};
-    bObj.destRect = {(int)m_x, (int)m_y, m_width, m_height};
+    bObj.destRect = {(int)m_x + camOffsetX, (int)m_y + camOffsetY, m_width, m_height};
     bObj.sortY = m_y + m_height;
     bObj.flip = SDL_FLIP_NONE;
     renderList.push_back(bObj);

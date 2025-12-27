@@ -1,13 +1,13 @@
 #pragma once
 
 // Dungeon spatial constants
-const int DUNGEON_GRID_SIZE = 12;      // 12x12 rooms
-const int ROOM_TILE_WIDTH = 20;        // Each room is 20 tiles wide
-const int ROOM_TILE_HEIGHT = 15;       // Each room is 15 tiles tall
-const int TILE_SIZE = 64;              // 64 pixels per tile
+inline constexpr int DUNGEON_GRID_SIZE = 12;      // 12x12 rooms
+inline constexpr int ROOM_TILE_WIDTH = 20;        // Each room is 20 tiles wide
+inline constexpr int ROOM_TILE_HEIGHT = 15;       // Each room is 15 tiles tall
+// TILE_SIZE defined in utils.h - do not redefine here
 
-const int ROOM_PIXEL_WIDTH = ROOM_TILE_WIDTH * TILE_SIZE;   // 1280 pixels
-const int ROOM_PIXEL_HEIGHT = ROOM_TILE_HEIGHT * TILE_SIZE; // 960 pixels
+inline constexpr int ROOM_PIXEL_WIDTH = ROOM_TILE_WIDTH * 64;   // 1280 pixels (using 64 directly)
+inline constexpr int ROOM_PIXEL_HEIGHT = ROOM_TILE_HEIGHT * 64; // 960 pixels (using 64 directly)
 
 // Helper: Convert dungeon grid to world pixels
 inline int DungeonGridToWorldX(int gridX) {

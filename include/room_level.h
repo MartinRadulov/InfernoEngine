@@ -1,7 +1,14 @@
 #pragma once
 #include "dungeon_constants.h"
 #include "room.h"
-#include "utils.h"
+
+// Need TILE_SIZE from utils.h (can't avoid this dependency)
+#ifndef TILE_SIZE
+    #include "utils.h"
+#endif
+
+// Forward declare to avoid circular dependency
+struct DoorState;
 
 #if defined(_WIN32)
 #include <SDL.h>
@@ -15,8 +22,9 @@ public:
     RoomLevel(Room* room);
 
     void Generate(Room* room);
+    void PlaceDoors(const DoorState& doors);
 
-    void RenderFloors(SDL_Renderer* renderer, int cameraOffsetX, int cameraOffsetY);
+    void RenderFloors(SDL_Renderer* renderer, int gridX, int gridY, int cameraOffsetX, int cameraOffsetY);
 
     int GetTile(int row, int col) const;
 
@@ -26,7 +34,8 @@ public:
     bool HasRightDoor() const {return m_hasRightDoor;}
 
 private:
-    int m_mapData[MAP_ROWS][MAP_COLS];
+    // Use ROOM_TILE_HEIGHT and ROOM_TILE_WIDTH from dungeon_constants.h
+    int m_mapData[ROOM_TILE_HEIGHT][ROOM_TILE_WIDTH];
 
     bool m_hasTopDoor;
     bool m_hasBottomDoor;
@@ -38,6 +47,4 @@ private:
     void GenerateTreasureRoom();
     void GenerateSecretRoom();
     //more when i need them
-
-    void PlaceDoors(Room* room);
 };

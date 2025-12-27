@@ -10,6 +10,8 @@
 #include "utils.h"
 #include "level.h"
 
+class Dungeon; // Forward declaration
+
 struct Collider{
     SDL_Rect box;
 
@@ -21,6 +23,7 @@ struct Collider{
     void SetPosition(float x, float y);
 
     bool CheckMapCollision(Level& level);
+    bool CheckMapCollision(const Dungeon& dungeon) const;
 
     bool CheckOverlap(Collider& other);
 };

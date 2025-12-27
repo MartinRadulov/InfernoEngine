@@ -7,7 +7,7 @@ Fly::Fly(float x, float y) : Enemy(x, y, S_ENEMY, S_ENEMY){
     m_damage = 15.0f;
 }
 
-void Fly::Update(Level& level, float playerX, float playerY){
+void Fly::Update(const Dungeon& dungeon, float playerX, float playerY){
     float velX = 0;
     float velY = 0;
 

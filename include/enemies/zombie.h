@@ -11,5 +11,5 @@ class Zombie : public Enemy{
 public:
     Zombie(float x, float y);
 
-    void Update(Level& level, float playerX, float playerY) override;
+    void Update(const Dungeon& dungeon, float playerX, float playerY) override;
 };

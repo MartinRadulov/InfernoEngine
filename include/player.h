@@ -10,9 +10,11 @@
 #endif
 
 // We need to know about the Level to check for walls!
-#include "level.h" 
+#include "level.h"
 #include "utils.h"
 #include "collider.h"
+
+class Dungeon; // Forward declaration
 
 enum class WeaponType {MELEE, RANGED};
 
@@ -20,9 +22,9 @@ class Player{
 public:
     Player(float startX, float startY);
 
-    void Update(const Uint8* keyState, Level& level);
+    void Update(const Uint8* keyState, const Dungeon& dungeon);
 
-    void Render(std::vector<RenderObject>& renderList);
+    void Render(std::vector<RenderObject>& renderList, int camOffsetX, int camOffsetY);
 
     float GetX() const {return m_x;}
     float GetY() const {return m_y;}

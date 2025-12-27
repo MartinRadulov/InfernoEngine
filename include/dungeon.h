@@ -5,6 +5,7 @@
 #include <set>
 #include <map>
 #include "room.h"
+#include "room_level.h"
 
 enum class RoomType{
     NONE,
@@ -45,13 +46,14 @@ struct DoorState {
 class Dungeon{
 public:
     Dungeon();
+    ~Dungeon();
     void GenerateDungeon(int maxRooms);
     void PrintMapToConsole();
-    
+
     // Spatial queries (grid-based)
     int GetRoomIDAt(int x, int y) const;
     bool IsPositionValid(int x, int y) const;
-    
+
     // Room queries (Room-based) - PRIMARY INTERFACE
     Room* GetRoomAt(int x, int y);
     Room* GetRoomByID(int id);
@@ -59,25 +61,36 @@ public:
     std::vector<Room*> GetAllRooms();
     std::vector<Room*> GetSpecialRooms();
     std::vector<Room*> GetConnectedRooms(int roomID);
-    
+
+    // RoomLevel queries
+    RoomLevel* GetRoomLevelAt(int x, int y);
+
+    // Collision checking for current room
+    bool CheckTileCollision(int worldX, int worldY) const;
+
     static const int DUNGEON_SIZE = 12;
     
 private:
     // LIGHTWEIGHT grid - just stores room IDs for spatial lookup
     int m_gridRoomIDs[DUNGEON_SIZE][DUNGEON_SIZE];
-    
+
     // Door state for rendering (could be computed on-demand but cached for performance)
     DoorState m_doors[DUNGEON_SIZE][DUNGEON_SIZE];
-    
+
+    // RoomLevel objects for visual rendering
+    RoomLevel* m_roomLevels[DUNGEON_SIZE][DUNGEON_SIZE];
+
     // PRIMARY DATA: Room objects
     std::map<int, Room> m_rooms;
     int m_lastRoomID = 0;
     int m_startRoomID = -1;
-    
+
     // Generation helpers
     Room* CreateRoom(RoomType type, RoomShape shape, const std::vector<Point>& cells);
     void ConnectRooms(Room* a, Room* b);
     void UpdateDoorStates(); // Sync door rendering state with room connections
+    void GenerateAllRoomLevels();
+    void GenerateRoomLevelAt(int x, int y);
     
     // Generation phases
     void ClearAll();

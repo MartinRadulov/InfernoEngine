@@ -16,6 +16,9 @@
 #include "../include/enemies/fly.h"
 #include "../include/enemies/stalker.h"
 #include "../include/dungeon.h"
+#include "../include/camera.h"
+#include "../include/room.h"
+#include "../include/dungeon_constants.h"
 
 // Cross-platform include for SDL
 #if defined(_WIN32)
@@ -41,6 +44,7 @@ int main(int argc, char* argv[]) {
 
     //Creating the objects
     Level currentLevel;
+    // Player will be positioned in the start room later
     Player player(80.0f, 80.0f);
     std::vector<Projectile> bullets;
     std::vector<std::unique_ptr<Enemy>> enemies;
@@ -58,6 +62,23 @@ int main(int argc, char* argv[]) {
     testDungeon.GenerateDungeon(15);
     testDungeon.PrintMapToConsole();
 
+    //Camera setup - start at the start room
+    Camera camera;
+    Room* startRoom = testDungeon.GetStartRoom();
+    if (startRoom) {
+        Point startCell = startRoom->GetCells()[0]; // Get first cell of start room
+        camera.SetRoom(startCell.x, startCell.y);
+
+        // Position player in the center of the start room (in world coordinates)
+        int startWorldX = DungeonGridToWorldX(startCell.x);
+        int startWorldY = DungeonGridToWorldY(startCell.y);
+        // Place player near center of room (ROOM_PIXEL_WIDTH/2, ROOM_PIXEL_HEIGHT/2)
+        player = Player(startWorldX + ROOM_PIXEL_WIDTH / 2,
+                       startWorldY + ROOM_PIXEL_HEIGHT / 2);
+    } else {
+        camera.SetRoom(0, 0); // Fallback to (0, 0)
+    }
+
     //Game running
     bool isRunning = true;
     SDL_Event event;
@@ -69,25 +90,29 @@ int main(int argc, char* argv[]) {
 
                 if(event.key.keysym.sym == SDLK_h) debugMode = !debugMode;
 
-                if(event.key.keysym.sym == SDLK_r){
-                    int pRow = PixelToGrid(player.GetY());
-                    int pCol = PixelToGrid(player.GetX());
-                    currentLevel.Generate(pRow, pCol);
-                }
+                // Disabled for now - will be used for dungeon regeneration later
+                // if(event.key.keysym.sym == SDLK_r){
+                //     int pRow = PixelToGrid(player.GetY());
+                //     int pCol = PixelToGrid(player.GetX());
+                //     currentLevel.Generate(pRow, pCol);
+                // }
 
                 player.HandleInput(event, bullets);
             }
         }
 
-    //Updating the objects 
+    //Updating the objects
     const Uint8* keys = SDL_GetKeyboardState(NULL);
-    player.Update(keys, currentLevel);
+    player.Update(keys, testDungeon);
     for(auto& bullet : bullets){
-        bullet.Update(currentLevel, player.GetX(), player.GetY());
+        bullet.Update(testDungeon, player.GetX(), player.GetY());
     }
     for(auto& enemy : enemies){
-        enemy->Update(currentLevel, player.GetX(), player.GetY());
+        enemy->Update(testDungeon, player.GetX(), player.GetY());
     }
+
+    // Update camera based on player position
+    camera.Update(player.GetX(), player.GetY());
 
     //Check collisions
     for(auto& bullet : bullets){
@@ -109,46 +134,48 @@ int main(int argc, char* argv[]) {
     }
 
     //Clean up
-    for(int i = 0; i < bullets.size(); i++){
-        if(!bullets[i].GetIsActive()){
-            bullets.erase(bullets.begin() + i);
-            i--;
-        }
-    }
-    for(int i = 0; i < enemies.size(); i++){
-        if(!enemies[i]->IsDead()){
-            enemies.erase(enemies.begin() + i);
-            i--;
-        }
-    }
+    // Remove inactive bullets using erase-remove idiom
+    bullets.erase(
+        std::remove_if(bullets.begin(), bullets.end(),
+            [](const Projectile& b) { return !b.GetIsActive(); }),
+        bullets.end()
+    );
+    // Remove dead enemies using erase-remove idiom
+    // Note: IsDead() has a bug (returns m_isActive instead of !m_isActive)
+    // So we remove when IsDead() returns false (which means actually dead)
+    enemies.erase(
+        std::remove_if(enemies.begin(), enemies.end(),
+            [](const std::unique_ptr<Enemy>& e) { return !e->IsDead(); }),
+        enemies.end()
+    );
 
     //Rendering part
     //---------------------------------------------------------------
     SDL_SetRenderDrawColor(renderer, 20, 20, 20, 255);
     SDL_RenderClear(renderer);
 
-    currentLevel.RenderFloors(renderer);
+    // Render the current room using camera offsets
+    int currentGridX = camera.GetCurrentRoomGridX();
+    int currentGridY = camera.GetCurrentRoomGridY();
+    RoomLevel* currentRoom = testDungeon.GetRoomLevelAt(currentGridX, currentGridY);
+    if (currentRoom) {
+        currentRoom->RenderFloors(renderer, currentGridX, currentGridY,
+                                  camera.GetOffsetX(), camera.GetOffsetY());
+    }
+
+    // Get camera offsets once
+    int camOffsetX = camera.GetOffsetX();
+    int camOffsetY = camera.GetOffsetY();
 
     std::vector<RenderObject> renderList;
-    player.Render(renderList);
+    player.Render(renderList, camOffsetX, camOffsetY);
     for(auto& enemy : enemies){
-        enemy->Render(renderList);
+        enemy->Render(renderList, camOffsetX, camOffsetY);
     }
     for(auto& bullet : bullets){
-        bullet.Render(renderList);
+        bullet.Render(renderList, camOffsetX, camOffsetY);
     }
-    for (int row = 0; row < MAP_ROWS; row++) {
-        for (int col = 0; col < MAP_COLS; col++) {
-            if (currentLevel.GetTile(row, col) == 1) {
-                RenderObject rObj;
-                rObj.textureID = "rock";
-                rObj.srcRect = {0, 0, SPRITE_SHEET_SIZE, SPRITE_SHEET_SIZE};
-                rObj.destRect = {col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE};
-                rObj.sortY = (row * TILE_SIZE) + TILE_SIZE;
-                renderList.push_back(rObj);
-            }
-        }
-    }
+    // Old Level rock rendering removed - walls now rendered by RoomLevel
 
     std::sort(renderList.begin(), renderList.end());
 
@@ -164,28 +191,54 @@ int main(int argc, char* argv[]) {
 
     //Debug Mode
     if(debugMode){
+        // Get camera offsets for debug rendering
+        int camOffsetX = camera.GetOffsetX();
+        int camOffsetY = camera.GetOffsetY();
+
+        // Debug hitboxes for walls in current room
         SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-        for(int row = 0; row < MAP_ROWS; row++){
-            for(int col = 0; col < MAP_COLS; col++){
-                if(currentLevel.GetTile(row, col) == 1){
-                    SDL_Rect wallRect = {col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE};
-                    SDL_RenderDrawRect(renderer, &wallRect);
+        if (currentRoom) {
+            int roomWorldX = DungeonGridToWorldX(currentGridX);
+            int roomWorldY = DungeonGridToWorldY(currentGridY);
+
+            for(int row = 0; row < ROOM_TILE_HEIGHT; row++){
+                for(int col = 0; col < ROOM_TILE_WIDTH; col++){
+                    if(currentRoom->GetTile(row, col) == 1){
+                        int worldX = roomWorldX + (col * TILE_SIZE);
+                        int worldY = roomWorldY + (row * TILE_SIZE);
+                        int screenX = worldX + camOffsetX;
+                        int screenY = worldY + camOffsetY;
+                        SDL_Rect wallRect = {screenX, screenY, TILE_SIZE, TILE_SIZE};
+                        SDL_RenderDrawRect(renderer, &wallRect);
+                    }
                 }
             }
         }
+
+        // Apply camera offset to enemy hitboxes
         SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
         for(auto& enemy : enemies){
-            SDL_Rect enemyRect = enemy->GetCollider().box;
+            Collider& col = enemy->GetCollider();
+            SDL_Rect enemyRect = {col.box.x + camOffsetX, col.box.y + camOffsetY,
+                                  col.box.w, col.box.h};
             SDL_RenderDrawRect(renderer, &enemyRect);
-            }
+        }
+
+        // Apply camera offset to bullet hitboxes
         SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
         for(auto& bullet : bullets){
-            SDL_Rect bulletRect = bullet.GetCollider().box;
+            Collider& col = bullet.GetCollider();
+            SDL_Rect bulletRect = {col.box.x + camOffsetX, col.box.y + camOffsetY,
+                                   col.box.w, col.box.h};
             SDL_RenderDrawRect(renderer, &bulletRect);
-            }
+        }
+
+        // Apply camera offset to player hitbox
         SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-        SDL_Rect playerRect = player.GetCollider().box;
-            SDL_RenderDrawRect(renderer, &playerRect);
+        Collider& playerCol = player.GetCollider();
+        SDL_Rect playerRect = {playerCol.box.x + camOffsetX, playerCol.box.y + camOffsetY,
+                               playerCol.box.w, playerCol.box.h};
+        SDL_RenderDrawRect(renderer, &playerRect);
     }
 
     SDL_RenderPresent(renderer);

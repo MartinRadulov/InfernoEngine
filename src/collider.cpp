@@ -1,4 +1,5 @@
 #include "../include/collider.h"
+#include "../include/dungeon.h"
 
 Collider::Collider(int w, int h, int offX, int offY){
     box = {0, 0, w, h};
@@ -25,6 +26,22 @@ bool Collider::CheckMapCollision(Level& level){
     if(level.GetTile(topRow, rightCol) == 1) return true;
     if(level.GetTile(bottomRow, leftCol) == 1) return true;
     if(level.GetTile(bottomRow, rightCol) == 1) return true;
+
+    return false;
+}
+
+bool Collider::CheckMapCollision(const Dungeon& dungeon) const {
+    // Check all four corners of the collider box
+    int left = box.x;
+    int right = box.x + box.w;
+    int top = box.y;
+    int bottom = box.y + box.h;
+
+    // Check corners
+    if (dungeon.CheckTileCollision(left, top)) return true;
+    if (dungeon.CheckTileCollision(right, top)) return true;
+    if (dungeon.CheckTileCollision(left, bottom)) return true;
+    if (dungeon.CheckTileCollision(right, bottom)) return true;
 
     return false;
 }

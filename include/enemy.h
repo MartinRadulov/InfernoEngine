@@ -11,6 +11,8 @@
 #include "collider.h"
 #include <string>
 
+class Dungeon; // Forward declaration
+
 enum class EnemyState{
     WANDERING,
     CHASING
@@ -26,9 +28,9 @@ public:
 
     Enemy& operator= (const Enemy&) = delete;
 
-    virtual void Update(Level& level, float playerX, float playerY) = 0;
+    virtual void Update(const Dungeon& dungeon, float playerX, float playerY) = 0;
 
-    virtual void Render(std::vector<RenderObject>& renderList);
+    virtual void Render(std::vector<RenderObject>& renderList, int camOffsetX, int camOffsetY);
 
     void TakeDamage(float dmgNum);
 
@@ -53,6 +55,6 @@ protected:
     std::string m_textureID;
     Collider m_collider;
 
-    void MoveWithCollision(float velX, float velY, Level& level);
+    void MoveWithCollision(float velX, float velY, const Dungeon& dungeon);
     void MoveFlying(float velX, float velY);
 }; 

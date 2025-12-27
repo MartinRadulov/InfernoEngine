@@ -1,15 +1,16 @@
 #include "../include/enemy.h"
+#include "../include/dungeon.h"
 #include <iostream> // For debugging if needed
 
 Enemy::Enemy(float x, float y, int width, int height)
-    : m_x(x), m_y(y), m_width(width), m_height(height), 
+    : m_x(x), m_y(y), m_width(width), m_height(height),
     m_collider(GetWidth(), GetHeight(), 0, 0) {}
 
-void Enemy::Render(std::vector<RenderObject>& renderList) {
+void Enemy::Render(std::vector<RenderObject>& renderList, int camOffsetX, int camOffsetY) {
     RenderObject eObj;
     eObj.textureID = m_textureID; // Use my internal ID (Zombie/Fly)
-    eObj.srcRect = {0, 0, SPRITE_SHEET_SIZE, SPRITE_SHEET_SIZE}; 
-    eObj.destRect = { (int)m_x, (int)m_y, m_width, m_height };
+    eObj.srcRect = {0, 0, SPRITE_SHEET_SIZE, SPRITE_SHEET_SIZE};
+    eObj.destRect = { (int)m_x + camOffsetX, (int)m_y + camOffsetY, m_width, m_height };
     eObj.sortY = m_y + m_height;
     eObj.flip = SDL_FLIP_NONE;
 
@@ -24,16 +25,16 @@ void Enemy::TakeDamage(float dmgNum){
     }
 }
 
-void Enemy::MoveWithCollision(float velX, float velY, Level& level){
+void Enemy::MoveWithCollision(float velX, float velY, const Dungeon& dungeon){
     float nextX = m_x + velX;
     float nextY = m_y + velY;
 
     m_collider.SetPosition(nextX, m_y);
-    if(!m_collider.CheckMapCollision(level)){
+    if(!m_collider.CheckMapCollision(dungeon)){
         m_x = nextX;
     }
     m_collider.SetPosition(m_x, nextY);
-    if(!m_collider.CheckMapCollision(level)){
+    if(!m_collider.CheckMapCollision(dungeon)){
         m_y = nextY;
     }
 

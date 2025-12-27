@@ -1,4 +1,5 @@
 #include "../include/player.h"
+#include "../include/dungeon.h"
 #include <iostream> // For debugging if needed
 
 Player::Player(float startX, float startY)
@@ -19,7 +20,7 @@ Player::Player(float startX, float startY)
     m_activeWeapon = &m_bow;
 }
 
-void Player::Update(const Uint8* keyState, Level& level) {
+void Player::Update(const Uint8* keyState, const Dungeon& dungeon) {
     // 1. Calculate where we WANT to go
     float nextX = m_x;
     float nextY = m_y;
@@ -30,18 +31,18 @@ void Player::Update(const Uint8* keyState, Level& level) {
     if (keyState[SDL_SCANCODE_D]) nextX += m_speed;
 
     m_collider.SetPosition(nextX, m_y);
-    if(!m_collider.CheckMapCollision(level)){
+    if(!m_collider.CheckMapCollision(dungeon)){
         m_x = nextX;
     }
     m_collider.SetPosition(m_x, nextY);
-    if(!m_collider.CheckMapCollision(level)){
+    if(!m_collider.CheckMapCollision(dungeon)){
         m_y = nextY;
     }
 
     m_collider.SetPosition(m_x, m_y);
 }
 
-void Player::Render(std::vector<RenderObject>& renderList) {
+void Player::Render(std::vector<RenderObject>& renderList, int camOffsetX, int camOffsetY) {
     bool isInvincible = (SDL_GetTicks() - m_lastDamageTime < m_invTime);
     bool blinkInvisible = (SDL_GetTicks() / 100) % 2 == 0;
 
@@ -53,7 +54,7 @@ void Player::Render(std::vector<RenderObject>& renderList) {
     RenderObject pObj;
     pObj.textureID = "isaac";
     pObj.srcRect = {0, 0, SPRITE_SHEET_SIZE, SPRITE_SHEET_SIZE}; // Or calculate animation frame here
-    pObj.destRect = { (int)m_x, (int)m_y, m_width, m_height };
+    pObj.destRect = { (int)m_x + camOffsetX, (int)m_y + camOffsetY, m_width, m_height };
     pObj.sortY = m_y + m_height; // Sort by feet
     pObj.flip = SDL_FLIP_NONE;
 

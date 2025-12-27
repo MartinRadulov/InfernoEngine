@@ -10,12 +10,14 @@
 #include "level.h"
 #include "collider.h"
 
+class Dungeon; // Forward declaration
+
 class Projectile{
 public:
     Projectile(float x, float y, float velX, float velY);
 
-    void Update(Level& level, float owenerX, float ownerY);
-    void Render(std::vector<RenderObject>& renderList);
+    void Update(const Dungeon& dungeon, float owenerX, float ownerY);
+    void Render(std::vector<RenderObject>& renderList, int camOffsetX, int camOffsetY);
     bool isOffScreen();
     bool GetIsActive() const {return m_isActive;}
     void Deactivate();

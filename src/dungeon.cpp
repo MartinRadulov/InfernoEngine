@@ -1,4 +1,6 @@
 #include "../include/dungeon.h"
+#include "../include/dungeon_constants.h"
+#include "../include/utils.h"
 #include <cstdlib>
 #include <ctime>
 #include <algorithm>
@@ -9,6 +11,17 @@ Dungeon::Dungeon(){
         std::srand(static_cast<unsigned>(std::time(nullptr)));
         seeded = true;
     }
+
+    // Initialize RoomLevel pointers to nullptr
+    for(int y = 0; y < DUNGEON_SIZE; y++){
+        for(int x = 0; x < DUNGEON_SIZE; x++){
+            m_roomLevels[y][x] = nullptr;
+        }
+    }
+}
+
+Dungeon::~Dungeon(){
+    ClearAll();
 }
 
 void Dungeon::GenerateDungeon(int maxRooms){
@@ -32,6 +45,7 @@ void Dungeon::GenerateDungeon(int maxRooms){
     PlaceSuperSecretRoom();
     CalculateStepDistances();
     UpdateDoorStates(); // Sync rendering state
+    GenerateAllRoomLevels(); // Generate visual representation for all rooms
 }
 
 void Dungeon::ClearAll(){
@@ -39,12 +53,18 @@ void Dungeon::ClearAll(){
     m_rooms.clear();
     m_lastRoomID = 0;
     m_startRoomID = -1;
-    
+
     // Clear grid
     for(int y = 0; y < DUNGEON_SIZE; y++){
         for(int x = 0; x < DUNGEON_SIZE; x++){
             m_gridRoomIDs[y][x] = -1;
             m_doors[y][x] = DoorState();
+
+            // Clean up RoomLevel objects
+            if(m_roomLevels[y][x] != nullptr){
+                delete m_roomLevels[y][x];
+                m_roomLevels[y][x] = nullptr;
+            }
         }
     }
 }
@@ -1052,4 +1072,79 @@ void Dungeon::PlaceConditionalSpecialRoom(RoomType type, int createChancePercent
     }
     
     // Could not place (dungeon too dense or bad luck)
+}
+
+void Dungeon::GenerateAllRoomLevels(){
+    // Loop through entire grid and generate RoomLevel for each occupied cell
+    for(int y = 0; y < DUNGEON_SIZE; y++){
+        for(int x = 0; x < DUNGEON_SIZE; x++){
+            // Only generate if there's a room at this position
+            if(m_gridRoomIDs[y][x] != -1){
+                GenerateRoomLevelAt(x, y);
+            }
+        }
+    }
+}
+
+void Dungeon::GenerateRoomLevelAt(int x, int y){
+    // Bounds check
+    if(!IsPositionValid(x, y)){
+        return;
+    }
+
+    // Get the Room at this position
+    Room* room = GetRoomAt(x, y);
+    if(!room){
+        return;
+    }
+
+    // Clean up existing RoomLevel if it exists
+    if(m_roomLevels[y][x] != nullptr){
+        delete m_roomLevels[y][x];
+        m_roomLevels[y][x] = nullptr;
+    }
+
+    // Create new RoomLevel
+    m_roomLevels[y][x] = new RoomLevel();
+
+    // Generate tile layout based on room type
+    m_roomLevels[y][x]->Generate(room);
+
+    // Place doors based on this cell's door state
+    m_roomLevels[y][x]->PlaceDoors(m_doors[y][x]);
+}
+
+RoomLevel* Dungeon::GetRoomLevelAt(int x, int y){
+    // Bounds check
+    if(!IsPositionValid(x, y)){
+        return nullptr;
+    }
+
+    return m_roomLevels[y][x];
+}
+
+bool Dungeon::CheckTileCollision(int worldX, int worldY) const {
+    // Convert world position to grid coordinates
+    int gridX = WorldToDungeonGridX(worldX);
+    int gridY = WorldToDungeonGridY(worldY);
+
+    // Get the RoomLevel at this grid position
+    if (gridX < 0 || gridX >= DUNGEON_SIZE || gridY < 0 || gridY >= DUNGEON_SIZE) {
+        return true; // Out of bounds = wall
+    }
+
+    RoomLevel* roomLevel = m_roomLevels[gridY][gridX];
+    if (!roomLevel) {
+        return true; // No room = wall
+    }
+
+    // Convert world position to tile position within the room
+    int roomWorldX = DungeonGridToWorldX(gridX);
+    int roomWorldY = DungeonGridToWorldY(gridY);
+    int localX = (worldX - roomWorldX) / TILE_SIZE;
+    int localY = (worldY - roomWorldY) / TILE_SIZE;
+
+    // Check if this tile is a wall
+    int tile = roomLevel->GetTile(localY, localX);
+    return (tile == 1); // 1 = wall, 0 = floor
 }
