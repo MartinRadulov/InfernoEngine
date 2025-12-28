@@ -19,17 +19,20 @@ RoomLevel::RoomLevel() {
     m_hasRightDoor = false;
 }
 
-RoomLevel::RoomLevel(Room* room) {
-    Generate(room);
+RoomLevel::RoomLevel(Room* room, int cellIndex) {
+    Generate(room, cellIndex);
 }
 
-void RoomLevel::Generate(Room* room) {
+void RoomLevel::Generate(Room* room, int cellIndex) {
     // Initialize to all floors first
     for (int row = 0; row < ROOM_TILE_HEIGHT; row++) {
         for (int col = 0; col < ROOM_TILE_WIDTH; col++) {
             m_mapData[row][col] = 0;
         }
     }
+
+    m_cellIndex = cellIndex;
+    m_isPartOfBigRoom = room->IsMultiCell();
 
     // Reset door flags
     m_hasTopDoor = false;
@@ -57,9 +60,9 @@ void RoomLevel::Generate(Room* room) {
                 break;
         }
     }
-
-    // Note: PlaceDoors should be called separately after Generate
-    // with the DoorState information from the Dungeon
+    if(m_isPartOfBigRoom){
+        RemoveInternalWalls(room, cellIndex);
+    }
 }
 
 void RoomLevel::GenerateNormalRoom() {
@@ -210,4 +213,44 @@ int RoomLevel::GetTile(int row, int col) const {
     }
 
     return m_mapData[row][col];
+}
+
+void RoomLevel::RemoveInternalWalls(Room* room, int cellIndex){
+    Point myCell = room->GetCells()[cellIndex];
+    const auto& allCells = room->GetCells();
+
+    // Top neighbor - remove top wall (skip corners to preserve outer walls)
+    if(CellInRoom({myCell.x, myCell.y - 1}, allCells)){
+        for(int col = 1; col < ROOM_TILE_WIDTH - 1; col++){
+            m_mapData[0][col] = 0;
+        }
+    }
+
+    // Bottom neighbor - remove bottom wall (skip corners)
+    if(CellInRoom({myCell.x, myCell.y + 1}, allCells)){
+        for(int col = 1; col < ROOM_TILE_WIDTH - 1; col++){
+            m_mapData[ROOM_TILE_HEIGHT - 1][col] = 0;
+        }
+    }
+
+    // Left neighbor - remove left wall (skip corners)
+    if(CellInRoom({myCell.x - 1, myCell.y}, allCells)){
+        for(int row = 1; row < ROOM_TILE_HEIGHT - 1; row++){
+            m_mapData[row][0] = 0;
+        }
+    }
+
+    // Right neighbor - remove right wall (skip corners)
+    if(CellInRoom({myCell.x + 1, myCell.y}, allCells)){
+        for(int row = 1; row < ROOM_TILE_HEIGHT - 1; row++){
+            m_mapData[row][ROOM_TILE_WIDTH - 1] = 0;
+        }
+    }
+}
+
+bool RoomLevel::CellInRoom(Point cell, const std::vector<Point>& roomCells){
+    for(const auto& c : roomCells){
+        if(c == cell) return true;
+    }
+    return false;
 }

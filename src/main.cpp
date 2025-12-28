@@ -111,8 +111,11 @@ int main(int argc, char* argv[]) {
         enemy->Update(testDungeon, player.GetX(), player.GetY());
     }
 
+
+    Room* playerRoom = testDungeon.GetRoomAt(WorldToDungeonGridX(player.GetX()),
+        WorldToDungeonGridY(player.GetY()));
     // Update camera based on player position
-    camera.Update(player.GetX(), player.GetY());
+    camera.Update(player.GetX(), player.GetY(), playerRoom);
 
     //Check collisions
     for(auto& bullet : bullets){
@@ -138,13 +141,30 @@ int main(int argc, char* argv[]) {
     SDL_SetRenderDrawColor(renderer, 20, 20, 20, 255);
     SDL_RenderClear(renderer);
 
-    // Render the current room using camera offsets
+    // Render room(s) using camera offsets
     int currentGridX = camera.GetCurrentRoomGridX();
     int currentGridY = camera.GetCurrentRoomGridY();
-    RoomLevel* currentRoom = testDungeon.GetRoomLevelAt(currentGridX, currentGridY);
+    Room* currentRoom = testDungeon.GetRoomAt(currentGridX, currentGridY);
+
     if (currentRoom) {
-        currentRoom->RenderFloors(renderer, currentGridX, currentGridY,
-                                  camera.GetOffsetX(), camera.GetOffsetY());
+        if (!currentRoom->IsMultiCell()) {
+            // Small room: render single cell
+            RoomLevel* roomLevel = testDungeon.GetRoomLevelAt(currentGridX, currentGridY);
+            if (roomLevel) {
+                roomLevel->RenderFloors(renderer, currentGridX, currentGridY,
+                                       camera.GetOffsetX(), camera.GetOffsetY());
+            }
+        } else {
+            // Big room: render all cells
+            const auto& cells = currentRoom->GetCells();
+            for (const auto& cell : cells) {
+                RoomLevel* cellRoomLevel = testDungeon.GetRoomLevelAt(cell.x, cell.y);
+                if (cellRoomLevel) {
+                    cellRoomLevel->RenderFloors(renderer, cell.x, cell.y,
+                                               camera.GetOffsetX(), camera.GetOffsetY());
+                }
+            }
+        }
     }
 
     // Get camera offsets once
@@ -179,21 +199,35 @@ int main(int argc, char* argv[]) {
         int camOffsetX = camera.GetOffsetX();
         int camOffsetY = camera.GetOffsetY();
 
-        // Debug hitboxes for walls in current room
+        // Debug hitboxes for walls in current room(s)
         SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
         if (currentRoom) {
-            int roomWorldX = DungeonGridToWorldX(currentGridX);
-            int roomWorldY = DungeonGridToWorldY(currentGridY);
+            // Get all cells to render (1 for small room, multiple for big room)
+            std::vector<Point> cellsToRender;
+            if (!currentRoom->IsMultiCell()) {
+                cellsToRender.push_back({currentGridX, currentGridY});
+            } else {
+                cellsToRender = currentRoom->GetCells();
+            }
 
-            for(int row = 0; row < ROOM_TILE_HEIGHT; row++){
-                for(int col = 0; col < ROOM_TILE_WIDTH; col++){
-                    if(currentRoom->GetTile(row, col) == 1){
-                        int worldX = roomWorldX + (col * TILE_SIZE);
-                        int worldY = roomWorldY + (row * TILE_SIZE);
-                        int screenX = worldX + camOffsetX;
-                        int screenY = worldY + camOffsetY;
-                        SDL_Rect wallRect = {screenX, screenY, TILE_SIZE, TILE_SIZE};
-                        SDL_RenderDrawRect(renderer, &wallRect);
+            // Render debug hitboxes for each cell
+            for (const auto& cellPos : cellsToRender) {
+                RoomLevel* roomLevel = testDungeon.GetRoomLevelAt(cellPos.x, cellPos.y);
+                if (!roomLevel) continue;
+
+                int roomWorldX = DungeonGridToWorldX(cellPos.x);
+                int roomWorldY = DungeonGridToWorldY(cellPos.y);
+
+                for(int row = 0; row < ROOM_TILE_HEIGHT; row++){
+                    for(int col = 0; col < ROOM_TILE_WIDTH; col++){
+                        if(roomLevel->GetTile(row, col) == 1){
+                            int worldX = roomWorldX + (col * TILE_SIZE);
+                            int worldY = roomWorldY + (row * TILE_SIZE);
+                            int screenX = worldX + camOffsetX;
+                            int screenY = worldY + camOffsetY;
+                            SDL_Rect wallRect = {screenX, screenY, TILE_SIZE, TILE_SIZE};
+                            SDL_RenderDrawRect(renderer, &wallRect);
+                        }
                     }
                 }
             }

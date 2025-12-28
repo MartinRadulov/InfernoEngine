@@ -1108,11 +1108,20 @@ void Dungeon::GenerateRoomLevelAt(int x, int y){
         m_roomLevels[y][x] = nullptr;
     }
 
+    int cellIndex = 0;
+    const auto& cells = room->GetCells();
+    for(size_t i = 0; i < cells.size(); i++){
+        if(cells[i].x == x && cells[i].y == y){
+            cellIndex = i;
+            break;
+        }
+    }
+
     // Create new RoomLevel
     m_roomLevels[y][x] = new RoomLevel();
 
     // Generate tile layout based on room type
-    m_roomLevels[y][x]->Generate(room);
+    m_roomLevels[y][x]->Generate(room, cellIndex);
 
     // Place doors based on this cell's door state
     m_roomLevels[y][x]->PlaceDoors(m_doors[y][x]);

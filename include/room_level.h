@@ -19,9 +19,9 @@ struct DoorState;
 class RoomLevel{
 public:
     RoomLevel();
-    RoomLevel(Room* room);
+    RoomLevel(Room* room, int cellIndex);
 
-    void Generate(Room* room);
+    void Generate(Room* room, int cellIndex);
     void PlaceDoors(const DoorState& doors);
 
     void RenderFloors(SDL_Renderer* renderer, int gridX, int gridY, int cameraOffsetX, int cameraOffsetY);
@@ -37,6 +37,9 @@ private:
     // Use ROOM_TILE_HEIGHT and ROOM_TILE_WIDTH from dungeon_constants.h
     int m_mapData[ROOM_TILE_HEIGHT][ROOM_TILE_WIDTH];
 
+    int m_cellIndex;
+    bool m_isPartOfBigRoom;
+
     bool m_hasTopDoor;
     bool m_hasBottomDoor;
     bool m_hasLeftDoor;
@@ -46,5 +49,7 @@ private:
     void GenerateBossRoom();
     void GenerateTreasureRoom();
     void GenerateSecretRoom();
+    void RemoveInternalWalls(Room* room, int cellIndex);
+    bool CellInRoom(Point cell, const std::vector<Point>& roomCells);
     //more when i need them
 };

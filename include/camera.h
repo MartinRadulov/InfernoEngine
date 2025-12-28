@@ -1,5 +1,6 @@
 #pragma once
 #include "dungeon_constants.h"
+#include "room.h"
 
 /// @brief Camera system for room-based rendering
 /// @details Manages camera position to center rooms on screen.
@@ -18,7 +19,7 @@ public:
     /// @param playerWorldX Player X position in world pixels
     /// @param playerWorldY Player Y position in world pixels
     /// @details Detects when player moves to a new room and updates camera accordingly
-    void Update(float playerWorldX, float playerWorldY);
+    void Update(float playerWorldX, float playerWorldY, Room* currentRoom);
 
     /// @brief Get camera X offset for rendering
     /// @return X offset to apply when rendering (worldX + offsetX = screenX)
@@ -39,7 +40,16 @@ private:
     int m_currentRoomGridY;  // Current room grid Y (0-11)
     int m_offsetX;           // Camera offset X (for rendering)
     int m_offsetY;           // Camera offset Y (for rendering)
+    Room* m_currentRoom;
+    bool m_isInBigRoom;
+    int m_bigRoomMinX;
+    int m_bigRoomMinY;
+    int m_bigRoomMaxX;
+    int m_bigRoomMaxY;
 
     /// @brief Calculate camera offsets to center current room on screen
     void CalculateOffset();
+    void CalculateBigRoomBounds(Room* room);
+    void UpdateForBigRoom(float playerWorldX, float playerWorldY);
+    int Clamp(int value, int min, int max);
 };
